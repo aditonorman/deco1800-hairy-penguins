@@ -2,33 +2,238 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<title>Hairy Penguins - DECO1800 Project</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+		<meta name="theme-color" content="#404a1c">
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23404a1c'/%3E%3Ccircle cx='32' cy='38' r='11' fill='%238fae4e'/%3E%3Ccircle cx='19' cy='24' r='6' fill='%23e8a94b'/%3E%3Ccircle cx='32' cy='18' r='6' fill='%23e8a94b'/%3E%3Ccircle cx='45' cy='24' r='6' fill='%23e8a94b'/%3E%3C/svg%3E">
+		<title>Wild Neighbours - Mt Coot-tha wildlife Pokedex</title>
+		<meta name="description" content="A Pokedex-style wildlife discovery app for casual hikers. See habitat zones, walk, and unlock species. DECO1800 team project.">
+
+		<!-- Fonts: Fraunces for headings, DM Sans for UI -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+		<!-- Leaflet (map library) from CDN -->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
 		<link rel="stylesheet" href="css/style.css">
 	</head>
 	<body>
-		<header>
-			<h1>Hairy Penguins</h1>
-			<p>DECO1800 Design Computing Studio 1 - Team Project</p>
+		<a class="skip-link" href="#main">Skip to content</a>
+
+		<!-- ============================================================
+		     Header: brand + data source toggle (cached files vs live API)
+		     ============================================================ -->
+		<header class="app-header">
+			<div class="brand">
+				<span class="brand-mark" aria-hidden="true">&#x1F43E;</span>
+				<h1>Wild Neighbours</h1>
+				<p class="tagline">Mt Coot-tha pilot</p>
+			</div>
+			<div class="header-actions">
+				<div class="seg" role="group" aria-label="Data source">
+					<button type="button" data-source="cached" class="is-active" title="Read the JSON files in /data (works offline)">Cached</button>
+					<button type="button" data-source="live" title="Fetch recent records live from the Atlas of Living Australia">Live</button>
+				</div>
+			</div>
 		</header>
 
-		<main>
-			<section id="intro">
-				<h2>Welcome</h2>
-				<p>This is the team zone for the Hairy Penguins. Replace this page with the project.</p>
+		<!-- Notice bar: shown when the live API is down, data is old, etc. -->
+		<div id="notice" class="notice" role="status" hidden></div>
+
+		<!-- Stats strip: personal progress, stored in localStorage -->
+		<section class="stats-strip" aria-label="Your progress">
+			<div class="stat">
+				<span class="stat-value" id="stat-zones">0</span>
+				<span class="stat-label">zones visited</span>
+			</div>
+			<div class="stat">
+				<span class="stat-value" id="stat-distance">0 m</span>
+				<span class="stat-label">walked</span>
+			</div>
+			<div class="stat">
+				<span class="stat-value" id="stat-species">0<small>/0</small></span>
+				<span class="stat-label">species found</span>
+			</div>
+		</section>
+
+		<main id="main">
+			<!-- ==========================================================
+			     Explore view: map with habitat zones. The same map is used
+			     for Walking mode; the side panel swaps for the walk HUD.
+			     ========================================================== -->
+			<section id="view-explore" class="view" aria-labelledby="explore-title">
+				<div class="explore-layout">
+					<aside class="panel explore-panel" id="explore-panel">
+						<div class="panel-head">
+							<h2 id="explore-title">Where are you walking?</h2>
+							<button type="button" class="panel-toggle" id="panel-toggle" aria-expanded="true" aria-controls="explore-panel">Hide options</button>
+						</div>
+						<div class="controls-grid">
+							<label class="field full">
+								<span>Location</span>
+								<select id="location-select"></select>
+							</label>
+							<label class="field">
+								<span>Radius <output id="radius-output" for="radius-range">1.5 km</output></span>
+								<input type="range" id="radius-range" min="500" max="3000" step="100" value="1500">
+							</label>
+							<label class="field">
+								<span>Records from</span>
+								<select id="window-select">
+									<option value="6">Last 6 months</option>
+									<option value="12">Last 12 months</option>
+									<option value="24">Last 2 years</option>
+									<option value="0">All cached records</option>
+								</select>
+							</label>
+						</div>
+						<p class="summary" id="explore-summary">Loading wildlife records&hellip;</p>
+						<div class="field-row">
+							<button type="button" class="btn btn-primary" id="btn-start-walk">Start walking</button>
+							<button type="button" class="btn btn-ghost btn-sm" id="btn-use-location" title="Centre the map on your current position">Use my location</button>
+						</div>
+					</aside>
+
+					<div class="map-wrap">
+						<div id="map" role="application" aria-label="Map of wildlife habitat zones"></div>
+
+						<div class="map-legend" aria-hidden="true">
+							<span><i class="legend-dot zone"></i>habitat zone</span>
+							<span><i class="legend-dot threat"></i>threatened species</span>
+							<span><i class="legend-dot you"></i>you</span>
+						</div>
+
+						<!-- Walking mode HUD (hidden until a walk starts) -->
+						<div class="walk-hud" id="walk-hud" hidden>
+							<div class="dpad" id="dpad" aria-label="Simulate walking">
+								<button type="button" class="up" data-dir="n" aria-label="Walk north">&#9650;</button>
+								<button type="button" class="left" data-dir="w" aria-label="Walk west">&#9664;</button>
+								<button type="button" class="centre" disabled aria-hidden="true">25 m</button>
+								<button type="button" class="right" data-dir="e" aria-label="Walk east">&#9654;</button>
+								<button type="button" class="down" data-dir="s" aria-label="Walk south">&#9660;</button>
+							</div>
+							<div class="hud-row">
+								<div class="seg" role="group" aria-label="Position source">
+									<button type="button" data-pos="sim" class="is-active">Simulate</button>
+									<button type="button" data-pos="gps">GPS</button>
+								</div>
+								<button type="button" class="chip is-active" id="btn-follow" aria-pressed="true">Follow me</button>
+								<button type="button" class="btn btn-ghost btn-sm" id="btn-end-walk">End walk</button>
+							</div>
+							<p class="hud-status" id="hud-status">Tap the map to place yourself, then use the arrows to walk.</p>
+							<p class="hud-zone is-out" id="hud-zone">Not in a habitat zone yet</p>
+						</div>
+					</div>
+				</div>
 			</section>
 
-			<section id="status">
-				<h2>Site status</h2>
-				<p id="message">Loading...</p>
+			<!-- ==========================================================
+			     Pokedex view: grid of species cards + detail dialog
+			     ========================================================== -->
+			<section id="view-pokedex" class="view" aria-labelledby="pokedex-title" hidden>
+				<div class="pokedex-head">
+					<h2 id="pokedex-title">Your Pokedex</h2>
+					<p id="pokedex-progress"></p>
+					<button type="button" class="btn btn-ghost btn-sm" id="btn-reset" title="Clear your Pokedex, photos and stats on this device">Reset progress</button>
+				</div>
+				<div class="pokedex-filters">
+					<div class="chip-row" id="group-filter" role="group" aria-label="Filter by animal group">
+						<button type="button" class="chip is-active" data-group="all">All</button>
+						<button type="button" class="chip" data-group="mammal">Mammals</button>
+						<button type="button" class="chip" data-group="bird">Birds</button>
+						<button type="button" class="chip" data-group="reptile">Reptiles</button>
+						<button type="button" class="chip" data-group="frog">Frogs</button>
+					</div>
+					<div class="chip-row" id="state-filter" role="group" aria-label="Filter by unlock state">
+						<button type="button" class="chip is-active" data-state="all">Everything</button>
+						<button type="button" class="chip" data-state="unlocked">Unlocked</button>
+						<button type="button" class="chip" data-state="locked">Still hidden</button>
+						<button type="button" class="chip" data-state="nearby">In current zones</button>
+					</div>
+					<label class="field full" style="margin:0">
+						<span class="visually-hidden">Search species</span>
+						<input type="search" id="pokedex-search" placeholder="Search by name&hellip;">
+					</label>
+				</div>
+				<ul class="pokedex-grid" id="pokedex-grid" aria-live="polite"></ul>
 			</section>
 		</main>
 
-		<footer>
-			<p>&copy; 2026 Hairy Penguins - The University of Queensland</p>
-		</footer>
+		<!-- Bottom tab bar -->
+		<nav class="tabbar" aria-label="Main">
+			<button type="button" data-tab="map" class="is-active" aria-current="page"><span class="ico" aria-hidden="true">&#x1F5FA;</span>Map</button>
+			<button type="button" data-tab="walk"><span class="ico" aria-hidden="true">&#x1F6B6;</span>Walk</button>
+			<button type="button" data-tab="pokedex"><span class="ico" aria-hidden="true">&#x1F4D6;</span>Pokedex</button>
+		</nav>
 
-		<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-		<script src="js/script.js"></script>
+		<!-- ============================================================
+		     Zone summary sheet: which species are expected in a zone
+		     ============================================================ -->
+		<aside class="sheet" id="zone-sheet" role="dialog" aria-labelledby="zone-title" hidden>
+			<div class="sheet-handle" aria-hidden="true"></div>
+			<div class="sheet-head">
+				<div>
+					<h2 id="zone-title">Zone</h2>
+					<p class="sheet-meta" id="zone-meta"></p>
+				</div>
+				<button type="button" class="icon-btn" id="zone-close" aria-label="Close">&#x2715;</button>
+			</div>
+			<div class="sheet-body">
+				<ul id="zone-species"></ul>
+			</div>
+		</aside>
+
+		<!-- Species entry detail dialog -->
+		<div class="modal" id="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-title" hidden>
+			<div class="modal-card">
+				<div class="modal-head">
+					<div>
+						<h2 class="entry-title" id="entry-title"></h2>
+						<p class="entry-sci" id="entry-sci"></p>
+					</div>
+					<button type="button" class="icon-btn" id="entry-close" aria-label="Close">&#x2715;</button>
+				</div>
+				<div class="modal-body" id="entry-body"></div>
+				<div class="modal-foot" id="entry-foot"></div>
+			</div>
+		</div>
+
+		<!-- Unlock celebration -->
+		<div class="modal celebrate" id="unlock-modal" role="dialog" aria-live="polite" aria-labelledby="unlock-title" hidden>
+			<div class="modal-card" id="unlock-card"></div>
+		</div>
+
+		<!-- Safety banner shown when entering a zone -->
+		<div class="banner" id="safety-banner" role="alert" hidden>
+			<div>
+				<strong id="safety-title">You have entered a habitat zone</strong>
+				<p>Stay on the trail, keep your distance, and never bait or call animals.</p>
+			</div>
+			<button type="button" class="btn btn-sm" id="safety-ok">Got it</button>
+		</div>
+
+		<div id="toast" class="toast" role="status" hidden></div>
+
+		<!-- Hidden file input used for attaching a personal photo -->
+		<input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
+
+		<!-- Scripts. Plain browser scripts, load order matters. -->
+		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+		<!-- Cached data bundle (generated by scripts/fetch-data.mjs) and curated facts.
+		     Loaded as scripts so the app also works from file://. -->
+		<script src="data/cached.js"></script>
+		<script src="data/facts.js"></script>
+		<script src="js/config.js"></script>
+		<script src="js/util.js"></script>
+		<script src="js/zones.js"></script>
+		<script src="js/storage.js"></script>
+		<script src="js/data.js"></script>
+		<script src="js/photos.js"></script>
+		<script src="js/ui.js"></script>
+		<script src="js/map.js"></script>
+		<script src="js/walk.js"></script>
+		<script src="js/pokedex.js"></script>
+		<script src="js/app.js"></script>
 	</body>
 </html>

@@ -14,7 +14,7 @@ ZONE_URL="https://deco1800teams-hairy-penguins.uqcloud.net/"
 REMOTE_DIR="/var/www/htdocs"
 
 # Only these are uploaded. Add folders here as the project grows.
-SITE_FILES=(index.html css js images)
+SITE_FILES=(index.html css js images data)
 
 UQ_USER="${1:-${UQ_USERNAME:-}}"
 if [ -z "$UQ_USER" ]; then

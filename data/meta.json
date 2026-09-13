@@ -1,0 +1,37 @@
+{
+  "app": "Wild Neighbours",
+  "fetchedAt": "2026-09-13T08:42:49.900Z",
+  "centre": {
+    "lat": -27.4747,
+    "lng": 152.9509
+  },
+  "radiusM": 3000,
+  "alaWindowMonths": 24,
+  "maxPrecisionM": 1000,
+  "classes": [
+    "Mammalia",
+    "Aves",
+    "Reptilia",
+    "Amphibia"
+  ],
+  "counts": {
+    "species": 336,
+    "sightings": 4847,
+    "wildnetRaw": 3198,
+    "alaRaw": 3145,
+    "images": 335,
+    "localThumbnails": 331
+  },
+  "sources": {
+    "wildnet": {
+      "name": "Qld WildNet Data API",
+      "url": "https://wildnet-pub.science-data.qld.gov.au/api/v1",
+      "cors": false
+    },
+    "ala": {
+      "name": "Atlas of Living Australia",
+      "url": "https://api.ala.org.au",
+      "cors": true
+    }
+  }
+}

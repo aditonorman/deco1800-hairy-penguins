@@ -7,3 +7,5 @@
 # Dependencies and logs
 node_modules/
 *.log
+scripts/screenshots/
+node_modules/
