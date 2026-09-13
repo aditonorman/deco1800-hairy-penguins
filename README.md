@@ -57,19 +57,26 @@ Site Manager > New Site:
 
 ## Zone admin cheatsheet
 
-Connect with `ssh your_uq_username@deco1800teams-hairy-penguins.zones.eait.uq.edu.au`.
+The zone runs Ubuntu 24.04 with nginx (already enabled) and MySQL. The course notes describe
+`svcadm`, which is for the older zone image and does not exist here; use `systemctl` instead.
+
+Connect with `ssh your_uq_username@deco1800teams-hairy-penguins.zones.eait.uq.edu.au`
+(or `ssh hairy-penguins` if you have the SSH config entry).
 
 | Task | Command |
 |---|---|
-| Enable the web server (first-time setup) | `sudo svcadm enable nginx` |
-| Restart the web server | `sudo svcadm restart nginx` |
-| Watch the error log | `tail -f /var/log/nginx/error.log` |
-| Access log | `tail /var/log/nginx/access.log` |
+| Check the web server | `systemctl status nginx` |
+| Restart the web server | `sudo systemctl restart nginx` |
+| Watch the error log | `sudo tail -f /var/log/nginx/error.log` |
+| Access log | `sudo tail /var/log/nginx/access.log` |
 | List backups (kept for a week) | `ls /var/www/.zfs/snapshot/` |
 | Roll back to a backup | `cp -a /var/www/.zfs/snapshot/<name>/htdocs /var/www/htdocs/` |
 
-A blank page after a refresh usually means a server-side error. Check the nginx error log,
-not just the browser console.
+`sudo` asks for your UQ password. A blank page after a refresh usually means a server-side
+error, so check the nginx error log, not just the browser console.
+
+The UQ login gate is applied by nginx on the zone itself, so `curl` from anywhere gets a 302
+to the UQ login page. Check the site in a browser while signed in.
 
 ## Team workflow
 
