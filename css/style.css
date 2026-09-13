@@ -183,7 +183,7 @@ output { color: var(--amber); font-weight: 600; }
 body[data-tab="walk"] .map-legend { display: none; }
 .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
 .legend-dot.zone { background: rgba(143, 174, 78, 0.55); border: 2px solid var(--leaf); }
-.legend-dot.threat { background: rgba(224, 118, 74, 0.4); border: 2px solid var(--coral); }
+.legend-dot.threat { background: rgba(143, 174, 78, 0.55); border: 2px solid var(--coral); }
 .legend-dot.you { background: var(--amber); border: 2px solid var(--cream); }
 
 /* the "you are here" marker */

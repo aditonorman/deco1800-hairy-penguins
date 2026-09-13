@@ -1,7 +1,8 @@
 # Wild Neighbours
 
-A Pokedex-style wildlife discovery web app for casual hikers, built for DECO1800
-(Design Computing Studio 1, UQ) by team **Hairy Penguins**. Piloted on Mt Coot-tha, Brisbane.
+A Pokedex-style wildlife discovery web app for casual hikers around Brisbane, built for DECO1800
+(Design Computing Studio 1, UQ) by team **Hairy Penguins**. Piloted on Mt Coot-tha, with cached
+data for greater Brisbane and live data anywhere.
 
 Pick a spot and a radius, see recent wildlife records as shaded **habitat zones** on a map
 (never exact pinpoints, for the animals' safety), walk outside, and unlock species entries in
@@ -17,7 +18,7 @@ There is no build step. It is plain HTML, CSS and JavaScript with Leaflet from a
 
 **Option A: open the file.** Double-click `index.html`. The cached data ships as a script
 (`data/cached.js`), so this works straight from disk. Map tiles and Google Fonts need internet;
-zones, the Pokedex and cached thumbnails work offline.
+zones, the Pokedex and cached thumbnails work offline for the cached areas.
 
 **Option B: local server** (needed for the Live data mode and recommended for the camera):
 
@@ -40,7 +41,7 @@ There are no accounts and no server.
 
 | View | What it does |
 |---|---|
-| **Map** | Choose a location preset (or tap the map), set the radius (0.5 to 3 km) and the recency window (6 months by default). Habitat zones are drawn as shaded circles, coral-edged when they include a threatened species. Tap a zone for the expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. |
+| **Map** | Choose a location preset (Mt Coot-tha plus bushland reserves and parks across Brisbane), tap the map, or use your GPS position; set the radius (0.5 to 3 km) and the recency window (6 months by default). Habitat zones are drawn as leaf-green circles, with a coral ring when they include a threatened species. Tap a zone for the expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. Outside the cached areas the app fetches live ALA records automatically. |
 | **Walk** | The map follows you. Position comes from real GPS or a simulated position (tap the map to jump, D-pad or arrow keys to walk 25 m). Entering a zone shows a safety banner, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs** buttons. |
 | **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, a fun fact, conservation status and when/where you unlocked it. |
 | **Stats strip** | Zones visited, distance walked and species found, always visible. |
@@ -60,28 +61,38 @@ Living Australia (ALA) as the secondary source for images and recent occurrence 
 | Browser calls? | **No.** WildNet sends no CORS headers, so a page cannot call it directly | **Yes.** ALA sends `Access-Control-Allow-Origin: *` |
 
 Because WildNet blocks browser requests, `scripts/fetch-data.mjs` (Node 18+, no packages)
-downloads and normalises everything into `/data`:
+downloads and normalises everything into `/data`. It caches two circular areas at different depths
+so the bundle stays small enough for a phone:
+
+| Area | Radius | ALA records | WildNet sightings |
+|---|---|---|---|
+| Mt Coot-tha pilot (`-27.4747, 152.9509`) | 3 km | last 24 months | everything |
+| Greater Brisbane (`-27.4698, 153.0251`) | 22 km | last 6 months | last 3 years |
 
 ```bash
-node scripts/fetch-data.mjs --images       # Mt Coot-tha, 3 km, 24 months of ALA records + thumbnails
-node scripts/fetch-data.mjs --lat -27.4747 --lng 152.9509 --radius 3000 --months 24
+node scripts/fetch-data.mjs --images       # both areas + thumbnails for offline use
+node scripts/fetch-data.mjs --lat -27.4747 --lng 152.9509 --radius 3000 --months 24 --years 0
+                                           # one custom area instead
 node scripts/fetch-data.mjs --bundle-only  # rebuild data/cached.js from the JSON files, no network
 ```
 
-It writes `meta.json`, `species.json`, `sightings.json`, `images.json`, cached thumbnails in
-`data/img/`, and `data/cached.js` (the JSON bundled as a script so the app runs from `file://`).
-The curated fun facts in `data/facts.js` are hand-written.
+It writes `meta.json` (areas, counts, column names), `species.json`, `sightings.json`,
+`images.json`, cached thumbnails in `data/img/`, and `data/cached.js` (the JSON bundled as a
+script so the app runs from `file://`). Sightings are stored as compact rows,
+`[id, src, speciesIndex, lat, lng, date, precision, vetCode]`, and expanded on load by
+`js/data.js`. The curated fun facts in `data/facts.js` are hand-written.
 
 The **Cached / Live** toggle in the header switches sources. Live mode fetches fresh ALA
 occurrences for the current circle straight from the browser (pages of 100, the API limit) and
-keeps WildNet records from the cache. If the live request fails or times out, the app falls back
+keeps WildNet records from the cache. If you pick a spot outside the cached areas while online,
+the app switches to Live by itself. If the live request fails or times out, the app falls back
 to the cache and says so in the notice bar.
 
 ### Data rules
 
 - **Recency.** Records default to the last 6 months (12 months, 2 years and everything cached
-  are also offered). WildNet alone has very few recent records for Mt Coot-tha, which is why the
-  ALA records matter so much for recency.
+  are also offered; the longer windows are only deep inside the Mt Coot-tha pilot area). WildNet
+  alone has very few recent records, which is why the ALA records matter so much for recency.
 - **Precision.** Records with a location precision worse than 1 km, or with no precision value,
   never place a zone. Restricted WildNet records and sensitive species are excluded from zone
   placement as well.

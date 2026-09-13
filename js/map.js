@@ -95,10 +95,12 @@ const WN_MAP = (function () {
 		zoneShapes = new Map();
 		const visited = new Set(WN_STORE.stats().zonesVisited);
 		zones.forEach(zone => {
-			const colour = zone.threatened ? COLOURS.threat : COLOURS.zone;
+			// Every zone is leaf green; zones with a threatened species get a coral ring.
 			const shape = L.circle([zone.lat, zone.lng], {
-				radius: zone.radius, color: colour, weight: visited.has(zone.id) ? 4 : 3, opacity: 0.95,
-				fillColor: colour, fillOpacity: visited.has(zone.id) ? 0.5 : 0.38
+				radius: zone.radius,
+				color: zone.threatened ? COLOURS.threat : COLOURS.zone,
+				weight: zone.threatened ? 4 : (visited.has(zone.id) ? 4 : 3), opacity: 0.95,
+				fillColor: COLOURS.zone, fillOpacity: visited.has(zone.id) ? 0.5 : 0.36
 			});
 			shape.bindTooltip((visited.has(zone.id) ? "✓ " : "") + zone.name, { permanent: true, direction: "center", className: "zone-label", opacity: 1 });
 			shape.on("click", (e) => { L.DomEvent.stopPropagation(e); if (handlers.zoneTap) handlers.zoneTap(zone); });

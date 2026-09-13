@@ -16,7 +16,10 @@ const U = require(path.join(root, "js/util.js"));
 const Z = require(path.join(root, "js/zones.js"));
 
 const species = JSON.parse(fs.readFileSync(path.join(root, "data/species.json"), "utf8"));
-const sightings = JSON.parse(fs.readFileSync(path.join(root, "data/sightings.json"), "utf8"));
+// sightings are compact rows [id, src, speciesIndex, lat, lng, date, prec, vet]; expand them like js/data.js does
+const sightings = JSON.parse(fs.readFileSync(path.join(root, "data/sightings.json"), "utf8")).map(r => Array.isArray(r)
+	? { id: r[0], src: r[1], key: species[r[2]].key, lat: r[3], lng: r[4], date: r[5], prec: r[6], vet: r[7] || undefined }
+	: r);
 const index = new Map(species.map(s => [s.key, Object.assign(s, {
 	threatened: Boolean(s.nca && ["E", "V", "CR", "NT"].includes(s.nca.code))
 })]));
@@ -47,6 +50,13 @@ for (const months of [6, 12, 24, 0]) {
 	console.log("  top zones: " + big.join(" | "));
 }
 
+// a preset away from the pilot area should also produce zones from the Brisbane-wide cache
+const far = CFG.LOCATIONS.find(l => l.id === "toohey");
+const farRecords = Z.filterRecords(sightings, { lat: far.lat, lng: far.lng, radiusM: 1500, sinceIso: U.monthsAgoIso(6) });
+const farZones = Z.buildZones(farRecords, { speciesIndex: index });
+console.log(`\n${far.name}: ${farRecords.length} records -> ${farZones.length} zones`);
+check("Brisbane-wide cache gives zones away from Mt Coot-tha", farZones.length > 0);
+
 // deterministic: same input, same output
 const f = Z.filterRecords(sightings, { lat: centre.lat, lng: centre.lng, radiusM: 1500, sinceIso: U.monthsAgoIso(6) });
 const a = Z.buildZones(f, { speciesIndex: index }), b = Z.buildZones(f, { speciesIndex: index });
@@ -55,8 +65,8 @@ check("\nclustering is deterministic", JSON.stringify(a) === JSON.stringify(b));
 // zoneAt finds the zone you are standing in
 const z0 = a[0];
 check("zoneAt returns the zone at its own centre", Z.zoneAt(a, z0.lat, z0.lng) && Z.zoneAt(a, z0.lat, z0.lng).id === z0.id);
-const far = U.offset(z0.lat, z0.lng, 5000, 5000);
-check("zoneAt returns null far away", Z.zoneAt(a, far.lat, far.lng) === null);
+const away = U.offset(z0.lat, z0.lng, 5000, 5000);
+check("zoneAt returns null far away", Z.zoneAt(a, away.lat, away.lng) === null);
 
 // activity hint sanity
 check("activity hint: single peak", U.activityHint([0,0,0,0,0,0,0,0,0,0,20,2]) === "Most records in November");

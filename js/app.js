@@ -29,9 +29,39 @@
 		return S.window ? "the last " + (S.window === 12 ? "12 months" : S.window === 24 ? "2 years" : S.window + " months") : "all cached records";
 	}
 
+	/**
+	 * How well the cache covers a circle: "full", "partial" or "none".
+	 * The cache is a list of circles (meta.areas) built by the fetch script.
+	 */
+	function cacheAreas() {
+		const m = WN_DATA.meta();
+		return m.areas || [{ name: "cached area", lat: m.centre.lat, lng: m.centre.lng, radiusM: m.radiusM }];
+	}
+	function cacheCoverage(loc) {
+		let best = "none";
+		for (const a of cacheAreas()) {
+			const d = U.haversine(loc.lat, loc.lng, a.lat, a.lng);
+			if (d + S.radius <= a.radiusM) return "full";
+			if (d - S.radius < a.radiusM) best = "partial";
+		}
+		return best;
+	}
+
+	let autoLiveKey = null;   // centre we already tried to fetch live for
+
 	/** Rebuild zones from the current records + settings and redraw everything. */
 	function rebuild(fit) {
 		const loc = currentLocation();
+
+		// Outside the cached circle? Fetch live once, automatically, when online.
+		const coverage = cacheCoverage(loc);
+		const key = loc.lat.toFixed(3) + "," + loc.lng.toFixed(3) + "," + S.radius;
+		if (coverage === "none" && S.source !== "live" && navigator.onLine !== false && autoLiveKey !== key) {
+			autoLiveKey = key;
+			WN_UI.toast("No cached records here, fetching live from ALA\u2026", 2500);
+			goLive();
+			return;
+		}
 		const sensitive = new Set(WN_DATA.allSpecies().filter(s => s.sensitive).map(s => s.key));
 		const filtered = WN_ZONES.filterRecords(WN_DATA.records(), {
 			lat: loc.lat, lng: loc.lng, radiusM: S.radius,
@@ -46,9 +76,14 @@
 
 		const speciesCount = new Set(zones.flatMap(z => z.species.map(s => s.key))).size;
 		let text = "<strong>" + zones.length + " habitat zones</strong> with <strong>" + speciesCount + " species</strong> from " +
-			filtered.length + " records in " + windowLabel() + ", within " + U.formatDistance(S.radius) + " of " + U.esc(loc.name) + ".";
+			filtered.length + " records in " + windowLabel() + ", within " + U.formatDistance(S.radius) + " of " + U.esc(loc.id === "custom" ? loc.place : loc.name) + ".";
 		if (!zones.length) text += " Try a wider radius or a longer time window.";
 		else if (zones.length < 4) text += " Few zones here. A wider radius or longer window will show more.";
+		if (S.source !== "live" && coverage !== "full") {
+			text += coverage === "none"
+				? " <strong>This spot is outside the cached area.</strong> Switch to Live to fetch records for it."
+				: " Part of this circle is outside the cached area; Live mode covers all of it.";
+		}
 		$("#explore-summary").innerHTML = text;
 	}
 
@@ -60,7 +95,8 @@
 
 	function cachedNotice() {
 		const m = WN_DATA.meta();
-		WN_UI.notice("Cached data from " + U.formatDate(m.fetchedAt.slice(0, 10)) + " (" + m.counts.sightings + " records, WildNet + ALA). Switch to Live for fresh ALA records.");
+		const areas = cacheAreas().map(a => a.name + (a.alaMonths ? " (" + a.alaMonths + " months of ALA" + (a.wildnetYears ? ", " + a.wildnetYears + " years of WildNet)" : ", all WildNet)") : "")).join("; ");
+		WN_UI.notice("Cached " + U.formatDate(m.fetchedAt.slice(0, 10)) + ": " + m.counts.sightings.toLocaleString() + " records covering " + areas + ". Switch to Live for fresh ALA records anywhere.");
 	}
 
 	async function goLive() {
@@ -105,7 +141,14 @@
 
 	function bindControls() {
 		const locSel = $("#location-select");
-		locSel.innerHTML = WN_CONFIG.LOCATIONS.map(l => '<option value="' + l.id + '">' + U.esc(l.name) + "</option>").join("");
+		const groups = [];
+		WN_CONFIG.LOCATIONS.forEach(l => {
+			let g = groups.find(x => x.name === l.group);
+			if (!g) { g = { name: l.group, items: [] }; groups.push(g); }
+			g.items.push(l);
+		});
+		locSel.innerHTML = groups.map(g => '<optgroup label="' + U.esc(g.name) + '">' +
+			g.items.map(l => '<option value="' + l.id + '">' + U.esc(l.name) + "</option>").join("") + "</optgroup>").join("");
 		locSel.value = S.location;
 		locSel.addEventListener("change", () => {
 			S.location = locSel.value; WN_STORE.setSetting("location", S.location);
@@ -132,9 +175,8 @@
 				WN_STORE.setSetting("location", "custom"); WN_STORE.setSetting("customLat", S.customLat); WN_STORE.setSetting("customLng", S.customLng);
 				locSel.value = "custom";
 				settingsChanged(true);
-				if (WN_DATA.source() === "cached") {
-					const c = WN_DATA.meta().centre;
-					if (U.haversine(S.customLat, S.customLng, c.lat, c.lng) > WN_DATA.meta().radiusM) WN_UI.notice("You are outside the cached pilot area (Mt Coot-tha). Switch to Live to see records near you.");
+				if (WN_DATA.source() === "cached" && cacheCoverage({ lat: S.customLat, lng: S.customLng }) === "none") {
+					WN_UI.notice("You are outside the cached areas. Switch to Live to see records near you.");
 				}
 			}, err => WN_UI.toast("Could not get your location: " + err.message), { enableHighAccuracy: true, timeout: 15000 });
 		});

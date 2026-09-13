@@ -2,7 +2,8 @@
 /**
  * Wild Neighbours - data fetch & cache script
  * ------------------------------------------------------------
- * Downloads wildlife records for a circle (default: Mt Coot-tha) from
+ * Downloads wildlife records for one or more circular AREAS (default: the
+ * Mt Coot-tha pilot at full depth plus greater Brisbane at lighter depth) from
  *
  *   1. Qld WildNet Data API  (primary: species list, conservation status,
  *      sighting records).  WildNet does NOT send CORS headers, so a browser
@@ -15,16 +16,18 @@
  *
  *   data/meta.json       when/where the cache was built, record counts
  *   data/species.json    species catalogue (one entry per species)
- *   data/sightings.json  precise records used to build habitat zones
+ *   data/sightings.json  precise records used to build habitat zones, as compact
+ *                        rows (see meta.columns) to keep the download small
  *   data/images.json     ALA reference image URLs per species
  *   data/img/<key>.jpg   cached thumbnails (only with --images)
  *   data/cached.js       the four JSON files bundled as one script, so the app
  *                        also works when index.html is opened from disk (file://)
  *
  * Usage:
- *   node scripts/fetch-data.mjs                 # Mt Coot-tha, 3 km, 24 months of ALA data
+ *   node scripts/fetch-data.mjs                 # the default AREAS below
  *   node scripts/fetch-data.mjs --images        # also download thumbnails for offline use
- *   node scripts/fetch-data.mjs --lat -27.4747 --lng 152.9509 --radius 3000 --months 24
+ *   node scripts/fetch-data.mjs --lat -27.4747 --lng 152.9509 --radius 3000 --months 24 --years 0
+ *                                               # one custom area instead (years = WildNet window, 0 = all)
  *   node scripts/fetch-data.mjs --bundle-only   # rebuild data/cached.js from the JSON files, no network
  *
  * Requires Node 18+ (built-in fetch). No npm packages.
@@ -37,11 +40,21 @@ import { fileURLToPath } from "node:url";
 // ---------- configuration ---------------------------------------------------
 
 const args = parseArgs(process.argv.slice(2));
-const CENTRE = { lat: num(args.lat, -27.4747), lng: num(args.lng, 152.9509) };
-const RADIUS_M = num(args.radius, 3000);
-const ALA_MONTHS = num(args.months, 24);          // how far back to pull ALA records
 const DOWNLOAD_IMAGES = Boolean(args.images);
 const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", args.out || "data");
+
+/* Areas to cache. Each is a circle with its own depth:
+     alaMonths     how far back to pull ALA occurrence records
+     wildnetYears  how far back to pull WildNet sightings (0 = everything)
+   The pilot gets the deepest history; greater Brisbane gets a lighter cut so
+   the bundle stays small enough for a phone on a trail. */
+const DEFAULT_AREAS = [
+  { name: "Mt Coot-tha pilot", lat: -27.4747, lng: 152.9509, radiusM: 3000, alaMonths: 24, wildnetYears: 0 },
+  { name: "Greater Brisbane", lat: -27.4698, lng: 153.0251, radiusM: 22000, alaMonths: 6, wildnetYears: 3 },
+];
+const AREAS = (args.lat !== undefined || args.lng !== undefined)
+  ? [{ name: "Custom area", lat: num(args.lat, -27.4747), lng: num(args.lng, 152.9509), radiusM: num(args.radius, 3000), alaMonths: num(args.months, 24), wildnetYears: num(args.years, 0) }]
+  : DEFAULT_AREAS;
 
 const WILDNET = "https://wildnet-pub.science-data.qld.gov.au/api/v1";
 const ALA = "https://api.ala.org.au";
@@ -106,12 +119,11 @@ function log(msg) { process.stdout.write(msg + "\n"); }
 
 // ---------- 1. WildNet species list ----------------------------------------
 
-async function fetchWildNetSpecies() {
+async function fetchWildNetSpecies(area, species) {
   const url = `${WILDNET}/species-list?kingdom_name=Animalia` +
-    `&central_point_latitude=${CENTRE.lat.toFixed(4)}&central_point_longitude=${CENTRE.lng.toFixed(4)}` +
-    `&distance=${(RADIUS_M / 1000).toFixed(1)}&page_size=5000`;
+    `&central_point_latitude=${area.lat.toFixed(4)}&central_point_longitude=${area.lng.toFixed(4)}` +
+    `&distance=${(area.radiusM / 1000).toFixed(1)}&page_size=5000`;
   const rows = await getJSON(url);
-  const species = new Map();
   for (const r of rows) {
     if (!CLASSES.includes(r.class_name)) continue;
     const key = speciesKey(r.scientific_name);
@@ -142,23 +154,30 @@ async function fetchWildNetSpecies() {
       _total: total,
     });
   }
-  return species;
+  return rows.length;
 }
 
 // ---------- 2. WildNet sighting records ------------------------------------
 
-async function fetchWildNetSightings() {
+async function fetchWildNetSightings(area) {
+  let since = "";
+  if (area.wildnetYears) {
+    const d = new Date(); d.setFullYear(d.getFullYear() - area.wildnetYears);
+    since = "&record_period_start=" + d.toISOString().slice(0, 10);
+  }
   const base = `${WILDNET}/sightings?kingdom_name=Animalia` +
-    `&central_point_latitude=${CENTRE.lat.toFixed(4)}&central_point_longitude=${CENTRE.lng.toFixed(4)}` +
-    `&distance=${(RADIUS_M / 1000).toFixed(1)}&page_size=5000`;
+    `&central_point_latitude=${area.lat.toFixed(4)}&central_point_longitude=${area.lng.toFixed(4)}` +
+    `&distance=${(area.radiusM / 1000).toFixed(1)}&page_size=5000${since}`;
   const all = [];
   let after = null;
-  for (let page = 1; page <= 20; page++) {
+  for (let page = 1; page <= 40; page++) {
     const rows = await getJSON(base + (after ? `&after_sighting_id=${after}` : ""));
     all.push(...rows);
+    process.stdout.write(`\r   WildNet sightings: ${all.length}`);
     if (rows.length < 5000) break;
     after = Math.max(...rows.map(r => r.sighting_id));
   }
+  process.stdout.write("\n");
   return all;
 }
 
@@ -167,7 +186,7 @@ function normaliseWildNet(r) {
   const key = speciesKey(r.scientific_name);
   if (!key || r.latitude == null || r.longitude == null) return null;
   return {
-    id: "wn" + r.sighting_id,
+    id: "w" + r.sighting_id,
     src: "wn",
     key,
     lat: +r.latitude.toFixed(5),
@@ -184,28 +203,56 @@ function normaliseWildNet(r) {
 
 // ---------- 3. ALA occurrence records --------------------------------------
 
-async function fetchAlaOccurrences() {
+/**
+ * ALA's search endpoint refuses to page past 5000 results, so the window is
+ * split into month-long chunks, and any month with more than 5000 records is
+ * split again by class. Each chunk is paged 100 at a time (the API maximum).
+ */
+async function fetchAlaOccurrences(area) {
   const since = new Date();
-  since.setMonth(since.getMonth() - ALA_MONTHS);
-  const fq = [
-    "kingdom:Animalia",
-    "spatiallyValid:true",
-    `classs:(${CLASSES.join(" OR ")})`,
-    `eventDate:[${since.toISOString().slice(0, 10)}T00:00:00Z TO *]`,
-    `coordinateUncertaintyInMeters:[0 TO ${MAX_PRECISION_M}]`,
-  ].map(f => "fq=" + encodeURIComponent(f)).join("&");
+  since.setMonth(since.getMonth() - area.alaMonths);
   const fl = "id,uuid,species,scientificName,vernacularName,classs,decimalLatitude,decimalLongitude," +
     "eventDate,coordinateUncertaintyInMeters,dataResourceName,identificationVerificationStatus,sensitive";
-  const base = `${ALA}/occurrences/occurrences/search?q=*:*&lat=${CENTRE.lat}&lon=${CENTRE.lng}` +
-    `&radius=${RADIUS_M / 1000}&${fq}&fl=${fl}&pageSize=100&sort=eventDate&dir=desc`;
+  const baseFq = [
+    "kingdom:Animalia",
+    "spatiallyValid:true",
+    `coordinateUncertaintyInMeters:[0 TO ${MAX_PRECISION_M}]`,
+  ];
   const all = [];
-  let total = Infinity;
-  for (let start = 0; start < total && start < 20000; start += 100) {
-    const page = await getJSON(`${base}&startIndex=${start}`);
-    total = page.totalRecords || 0;
-    all.push(...(page.occurrences || []));
-    if ((page.occurrences || []).length === 0) break;
-    process.stdout.write(`\r   ALA occurrences: ${all.length}/${total}`);
+
+  async function fetchChunk(fqList, label) {
+    const fq = fqList.map(f => "fq=" + encodeURIComponent(f)).join("&");
+    const base = `${ALA}/occurrences/occurrences/search?q=*:*&lat=${area.lat}&lon=${area.lng}` +
+      `&radius=${area.radiusM / 1000}&${fq}&fl=${fl}&pageSize=100&sort=eventDate&dir=desc`;
+    let total = Infinity, got = 0;
+    for (let start = 0; start < total && start < 5000; start += 100) {
+      const page = await getJSON(`${base}&startIndex=${start}`);
+      total = page.totalRecords || 0;
+      if (start === 0 && total > 5000) return total;   // caller splits further
+      const rows = page.occurrences || [];
+      all.push(...rows);
+      got += rows.length;
+      if (rows.length === 0) break;
+      process.stdout.write(`\r   ALA occurrences: ${all.length} (${label}: ${got}/${total})      `);
+    }
+    return 0;
+  }
+
+  // month-long chunks from the window start to now
+  const cursor = new Date(since);
+  while (cursor < new Date()) {
+    const from = new Date(cursor);
+    cursor.setMonth(cursor.getMonth() + 1);
+    const to = new Date(Math.min(cursor.getTime(), Date.now()));
+    const dateFq = `eventDate:[${from.toISOString().slice(0, 10)}T00:00:00Z TO ${to.toISOString().slice(0, 10)}T00:00:00Z]`;
+    const label = from.toISOString().slice(0, 7);
+    const tooMany = await fetchChunk([...baseFq, `classs:(${CLASSES.join(" OR ")})`, dateFq], label);
+    if (tooMany) {
+      for (const cls of CLASSES) {
+        const still = await fetchChunk([...baseFq, `classs:${cls}`, dateFq], label + " " + cls);
+        if (still) log(`\n   warning: ${label} ${cls} has ${still} records; only the first 5000 were fetched`);
+      }
+    }
   }
   process.stdout.write("\n");
   return all;
@@ -216,7 +263,7 @@ function normaliseAla(o) {
   const key = speciesKey(o.species || o.scientificName);
   if (!key || o.decimalLatitude == null || o.decimalLongitude == null) return null;
   return {
-    id: "ala" + (o.uuid || o.id),
+    id: "a" + String(o.uuid || o.id).replace(/-/g, "").slice(0, 12),
     src: "ala",
     key,
     lat: +Number(o.decimalLatitude).toFixed(5),
@@ -363,39 +410,53 @@ async function bundleOnly() {
 
 async function main() {
   if (args["bundle-only"]) return bundleOnly();
-  log(`Wild Neighbours data fetch\n  centre ${CENTRE.lat}, ${CENTRE.lng}  radius ${RADIUS_M} m  ALA window ${ALA_MONTHS} months\n`);
+  log("Wild Neighbours data fetch");
+  AREAS.forEach(a => log(`  ${a.name}: ${a.lat}, ${a.lng}  radius ${a.radiusM} m  ALA ${a.alaMonths} months  WildNet ${a.wildnetYears ? a.wildnetYears + " years" : "all time"}`));
   await fs.mkdir(OUT_DIR, { recursive: true });
 
-  log("1. WildNet species list");
-  const species = await fetchWildNetSpecies();
-  log(`   ${species.size} vertebrate species`);
+  const species = new Map();
+  const rawById = new Map();        // every normalised record we saw, deduped by id
+  const areaCounts = [];
 
-  log("2. WildNet sightings");
-  const wnRaw = await fetchWildNetSightings();
-  const wnAll = wnRaw.map(normaliseWildNet).filter(Boolean).filter(r => CLASSES.includes(r.class));
-  log(`   ${wnRaw.length} records, ${wnAll.length} vertebrate records with coordinates`);
+  for (const area of AREAS) {
+    log(`\n== ${area.name} ==`);
+    log("1. WildNet species list");
+    const n = await fetchWildNetSpecies(area, species);
+    log(`   ${n} taxa listed, catalogue now ${species.size} vertebrate species`);
 
-  log("3. ALA occurrences");
-  const alaRaw = await fetchAlaOccurrences();
-  const alaAll = alaRaw.map(normaliseAla).filter(Boolean);
+    log("2. WildNet sightings");
+    const wnRaw = await fetchWildNetSightings(area);
+    let wnKept = 0;
+    for (const r of wnRaw.map(normaliseWildNet)) {
+      if (r && CLASSES.includes(r.class) && !rawById.has(r.id)) { rawById.set(r.id, r); wnKept++; }
+    }
+    log(`   ${wnRaw.length} records, ${wnKept} new vertebrate records with coordinates`);
 
-  // Species seen in ALA but missing from the WildNet list get a catalogue entry too.
-  let added = 0;
-  for (const r of alaAll) {
-    if (species.has(r.key) || !CLASSES.includes(r.class)) continue;
-    species.set(r.key, {
-      key: r.key, sci: binomial(r.sci), common: r.common ? titleCase(r.common) : null,
-      class: r.class, group: CLASS_GROUP[r.class], family: null, taxonId: null,
-      source: "ala", conSig: false, sensitive: false, nca: null, epbc: null,
-      establishment: null, wildnet: null, _total: 0,
-    });
-    added++;
+    log("3. ALA occurrences");
+    const alaRaw = await fetchAlaOccurrences(area);
+    let alaKept = 0, added = 0;
+    for (const r of alaRaw.map(normaliseAla)) {
+      if (!r || !CLASSES.includes(r.class)) continue;
+      if (!rawById.has(r.id)) { rawById.set(r.id, r); alaKept++; }
+      if (!species.has(r.key)) {
+        species.set(r.key, {
+          key: r.key, sci: binomial(r.sci), common: r.common ? titleCase(r.common) : null,
+          class: r.class, group: CLASS_GROUP[r.class], family: null, taxonId: null,
+          source: "ala", conSig: false, sensitive: false, nca: null, epbc: null,
+          establishment: null, wildnet: null, _total: 0,
+        });
+        added++;
+      }
+    }
+    log(`   ${alaRaw.length} records, ${alaKept} new; ${added} species found only in ALA`);
+    areaCounts.push({ name: area.name, wildnetRaw: wnRaw.length, alaRaw: alaRaw.length });
   }
-  log(`   ${added} extra species found only in ALA records`);
 
-  // Month histogram per species from every record we saw (any precision, any date)
+  const all = [...rawById.values()];
+
+  // Month histogram per species from every record we saw (any precision)
   const months = {};
-  for (const r of [...wnAll, ...alaAll]) {
+  for (const r of all) {
     if (!r.date) continue;
     const m = Number(r.date.slice(5, 7)) - 1;
     if (!(m >= 0 && m < 12)) continue;
@@ -410,42 +471,33 @@ async function main() {
   // Records that may place a zone: known precision within 1 km, not restricted,
   // not a sensitive species (their coordinates are deliberately fuzzy at source).
   const sensitiveKeys = new Set([...species.values()].filter(s => s.sensitive).map(s => s.key));
-  const usable = [...wnAll, ...alaAll].filter(r =>
+  const usable = all.filter(r =>
     r.prec != null && r.prec <= MAX_PRECISION_M && !r.restricted && !r.sensitive &&
-    !sensitiveKeys.has(r.key) && r.date && species.has(r.key));
-  // Slim the records for the browser.
-  // Dedupe by id: the ALA index can shift between pages, and WildNet lists a
-  // sighting once per site visit.
-  const seen = new Set();
-  const unique = usable.filter(r => (seen.has(r.id) ? false : seen.add(r.id)));
-  const sightings = unique.map(r => {
-    const o = { id: r.id, src: r.src, key: r.key, lat: r.lat, lng: r.lng, date: r.date, prec: r.prec };
-    if (r.vet) o.vet = r.vet;
-    if (r.grade) o.grade = r.grade;
-    if (r.ds) o.ds = r.ds;
-    return o;
-  }).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  log(`   ${sightings.length} precise records kept for zone building (WildNet ${sightings.filter(s => s.src === "wn").length}, ALA ${sightings.filter(s => s.src === "ala").length})`);
+    !sensitiveKeys.has(r.key) && r.date && species.has(r.key))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  log(`\n${usable.length} precise records kept for zone building (WildNet ${usable.filter(s => s.src === "wn").length}, ALA ${usable.filter(s => s.src === "ala").length})`);
 
   log("4. ALA reference images");
   const speciesList = [...species.values()].sort((a, b) => (a.common || a.sci).localeCompare(b.common || b.sci));
   const images = await lookupAlaImages(speciesList);
   if (DOWNLOAD_IMAGES) await downloadThumbnails(images);
 
+  // Compact rows: [id, src, speciesIndex, lat, lng, date, precision, vetCode]
+  const indexOf = new Map(speciesList.map((sp, i) => [sp.key, i]));
+  const columns = ["id", "src", "speciesIndex", "lat", "lng", "date", "prec", "vet"];
+  const sightings = usable.map(r => [r.id, r.src, indexOf.get(r.key), +r.lat.toFixed(4), +r.lng.toFixed(4), r.date, Math.round(r.prec), r.vet || null]);
+
   log("5. Writing files");
   const meta = {
     app: "Wild Neighbours",
     fetchedAt: new Date().toISOString(),
-    centre: CENTRE,
-    radiusM: RADIUS_M,
-    alaWindowMonths: ALA_MONTHS,
+    areas: AREAS.map((a, i) => Object.assign({}, a, areaCounts[i])),
     maxPrecisionM: MAX_PRECISION_M,
     classes: CLASSES,
+    columns,
     counts: {
       species: speciesList.length,
       sightings: sightings.length,
-      wildnetRaw: wnRaw.length,
-      alaRaw: alaRaw.length,
       images: Object.keys(images).length,
       localThumbnails: Object.values(images).filter(i => i.local).length,
     },

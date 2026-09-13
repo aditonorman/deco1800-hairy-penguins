@@ -25,6 +25,24 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let failures = 0;
 function check(name, ok, detail) { console.log((ok ? "  ok   " : "  FAIL ") + name + (detail ? " (" + detail + ")" : "")); if (!ok) failures++; }
 
+
+/** Centre of the first zone circle that is fully visible inside the map and clear of the tab bar. */
+async function visibleZonePoint(page) {
+  return page.evaluate(() => {
+    const map = document.getElementById("map").getBoundingClientRect();
+    const limit = Math.min(map.bottom, window.innerHeight - 80);
+    const paths = Array.from(document.querySelectorAll(".leaflet-interactive"));
+    for (const p of paths) {
+      const b = p.getBoundingClientRect();
+      if (b.width < 30) continue;                       // centre dot
+      if (p.getAttribute("stroke") === "#e8a94b") continue; // search radius ring
+      const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+      if (cx > map.left + 10 && cx < map.right - 10 && cy > map.top + 10 && cy < limit) return { x: cx, y: cy };
+    }
+    return null;
+  });
+}
+
 (async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
   const server = mode === "server" ? spawn("python3", ["-m", "http.server", String(PORT)], { cwd: PROJECT, stdio: "ignore" }) : null;
@@ -51,8 +69,9 @@ function check(name, ok, detail) { console.log((ok ? "  ok   " : "  FAIL ") + na
   await page.screenshot({ path: path.join(SHOTS, `${mode}-1-map-phone.png`) });
 
   // tap a zone (click centre of the first zone path)
-  const firstZone = await page.$(".leaflet-interactive:nth-of-type(3)");
-  if (firstZone) { const box = await firstZone.boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); }
+  const zp = await visibleZonePoint(page);
+  check("a zone is visible to tap", zp !== null);
+  if (zp) await page.mouse.click(zp.x, zp.y);
   await sleep(500);
   check("zone sheet opens on tap", await page.$eval("#zone-sheet", el => !el.hidden));
   const rows = await page.$$eval("#zone-species .species-row", els => els.length);
@@ -83,9 +102,9 @@ function check(name, ok, detail) { console.log((ok ? "  ok   " : "  FAIL ") + na
     return shapes.length;
   });
   // Simulate by pressing the dpad until the HUD says we're in a zone (walk toward zone). Simpler: click on a zone shape while in walk tab = teleport (mapTap fires) 
-  const zoneEl = await page.$(".leaflet-interactive:nth-of-type(3)");
-  const zb = await zoneEl.boundingBox();
-  await page.mouse.click(zb.x + zb.width / 2, zb.y + zb.height / 2);
+  const zp2 = await visibleZonePoint(page);
+  check("a zone is visible to walk into", zp2 !== null);
+  if (zp2) await page.mouse.click(zp2.x, zp2.y);
   await sleep(700);
   const bannerShown = await page.$eval("#safety-banner", el => !el.hidden);
   check("safety banner on zone entry", bannerShown);

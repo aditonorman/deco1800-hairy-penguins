@@ -56,12 +56,24 @@ const WN_DATA = (function () {
 			state.loadedFrom = "json";
 		}
 		state.meta = bundle.meta;
-		state.sightings = bundle.sightings;
 		state.images = bundle.images || {};
 		state.facts = window.WN_FACTS || bundle.facts || {};
 		state.species = bundle.species.map(decorateSpecies);
 		state.speciesIndex = new Map(state.species.map(s => [s.key, s]));
+		state.sightings = expandRows(bundle.sightings, state.species);
 		return state;
+	}
+
+	/**
+	 * The fetch script stores sightings as compact rows
+	 *   [id, src, speciesIndex, lat, lng, date, prec, vet]
+	 * (see meta.columns) to keep the download small. Expand them into the
+	 * record objects the rest of the app uses. Older caches used objects already.
+	 */
+	function expandRows(rows, species) {
+		return rows.map(r => Array.isArray(r)
+			? { id: r[0], src: r[1], key: species[r[2]] ? species[r[2]].key : null, lat: r[3], lng: r[4], date: r[5], prec: r[6], vet: r[7] || undefined }
+			: r).filter(r => r.key);
 	}
 
 	/** Add derived fields the UI needs. */

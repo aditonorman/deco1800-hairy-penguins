@@ -1,12 +1,28 @@
 {
   "app": "Wild Neighbours",
-  "fetchedAt": "2026-09-13T08:42:49.900Z",
-  "centre": {
-    "lat": -27.4747,
-    "lng": 152.9509
-  },
-  "radiusM": 3000,
-  "alaWindowMonths": 24,
+  "fetchedAt": "2026-09-13T10:03:57.504Z",
+  "areas": [
+    {
+      "name": "Mt Coot-tha pilot",
+      "lat": -27.4747,
+      "lng": 152.9509,
+      "radiusM": 3000,
+      "alaMonths": 24,
+      "wildnetYears": 0,
+      "wildnetRaw": 3198,
+      "alaRaw": 3150
+    },
+    {
+      "name": "Greater Brisbane",
+      "lat": -27.4698,
+      "lng": 153.0251,
+      "radiusM": 22000,
+      "alaMonths": 6,
+      "wildnetYears": 3,
+      "wildnetRaw": 8204,
+      "alaRaw": 21006
+    }
+  ],
   "maxPrecisionM": 1000,
   "classes": [
     "Mammalia",
@@ -14,13 +30,21 @@
     "Reptilia",
     "Amphibia"
   ],
+  "columns": [
+    "id",
+    "src",
+    "speciesIndex",
+    "lat",
+    "lng",
+    "date",
+    "prec",
+    "vet"
+  ],
   "counts": {
-    "species": 336,
-    "sightings": 4847,
-    "wildnetRaw": 3198,
-    "alaRaw": 3145,
-    "images": 335,
-    "localThumbnails": 331
+    "species": 708,
+    "sightings": 32395,
+    "images": 703,
+    "localThumbnails": 695
   },
   "sources": {
     "wildnet": {
