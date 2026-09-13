@@ -1,0 +1,10 @@
+{
+	"name": "Hairy Penguins zone",
+	"host": "deco1800teams-hairy-penguins.zones.eait.uq.edu.au",
+	"protocol": "sftp",
+	"port": 22,
+	"username": "YOUR_UQ_USERNAME",
+	"remotePath": "/var/www/htdocs",
+	"uploadOnSave": false,
+	"ignore": [".vscode", ".git", ".gitignore", ".DS_Store", "README.md", "deploy.sh"]
+}

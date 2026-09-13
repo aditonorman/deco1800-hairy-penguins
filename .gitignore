@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Personal editor/SFTP settings (each teammate keeps their own copy)
+.vscode/sftp.json
+
+# Dependencies and logs
+node_modules/
+*.log
