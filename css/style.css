@@ -168,7 +168,8 @@ output { color: var(--amber); font-weight: 600; }
 .map-wrap { position: relative; flex: 1; min-height: 440px; margin: 0 16px 12px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line); }
 #map { position: absolute; inset: 0; background: #2a3210; }
 .leaflet-container { font-family: var(--font-ui); }
-.leaflet-tile-pane { filter: saturate(0.75) brightness(0.92); }
+/* Mute the topo basemap so the leaf-green zones read clearly over green forest. */
+.leaflet-tile-pane { filter: saturate(0.25) brightness(0.9) contrast(0.95); }
 .leaflet-control-attribution { background: rgba(47, 56, 19, 0.85) !important; color: var(--cream-70) !important; font-size: 10px !important; }
 .leaflet-control-attribution a { color: var(--amber) !important; }
 .leaflet-bar a { background: var(--olive-deep) !important; color: var(--cream) !important; border-color: var(--line) !important; }

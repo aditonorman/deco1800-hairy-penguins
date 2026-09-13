@@ -19,14 +19,11 @@ const WN_MAP = (function () {
 	/* Basemap providers, tried in order. OpenStreetMap's own tile servers are
 	   not used: their usage policy rejects pages opened from disk (no referrer)
 	   and returns an "Access blocked" image instead of an error, so the app
-	   could not even detect it. These providers allow light non-commercial use
-	   with attribution and fail loudly, which lets us fall through the list. */
+	   could not even detect it. CARTO now watermarks tiles without an API key.
+	   OpenTopoMap (trails and contours, ideal for hikers) and Esri allow light
+	   non-commercial use with attribution and fail loudly, which lets us fall
+	   through the list when a provider is down. */
 	const TILE_PROVIDERS = [
-		{
-			name: "CARTO Voyager",
-			url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-			options: { subdomains: "abcd", maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' }
-		},
 		{
 			name: "OpenTopoMap",
 			url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
@@ -36,6 +33,11 @@ const WN_MAP = (function () {
 			name: "Esri World Topo",
 			url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
 			options: { maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS and others' }
+		},
+		{
+			name: "Esri World Street",
+			url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+			options: { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
 		}
 	];
 
@@ -45,6 +47,10 @@ const WN_MAP = (function () {
 		let loads = 0, errors = 0;
 		const layer = L.tileLayer(p.url, p.options);
 		layer.on("tileload", () => { loads++; });
+		// Once the first batch of tiles is in, nudge Leaflet to repaint the SVG
+		// overlay. Some browsers otherwise leave the zones uncomposited until the
+		// user touches the map.
+		layer.once("load", () => { map.invalidateSize({ pan: false }); });
 		layer.on("tileerror", () => {
 			errors++;
 			if (loads > 0 || errors < 3) return;          // sporadic errors are fine
@@ -75,7 +81,7 @@ const WN_MAP = (function () {
 	function setCentre(lat, lng, radiusM, fit) {
 		if (!centreMarker) {
 			centreMarker = L.circleMarker([lat, lng], { radius: 5, color: COLOURS.cream, fillColor: COLOURS.amber, fillOpacity: 1, weight: 2 }).addTo(map);
-			radiusCircle = L.circle([lat, lng], { radius: radiusM, color: COLOURS.amber, weight: 1.5, dashArray: "6 6", fill: false, interactive: false }).addTo(map);
+			radiusCircle = L.circle([lat, lng], { radius: radiusM, color: COLOURS.amber, weight: 2.5, dashArray: "8 8", fill: false, interactive: false }).addTo(map);
 		} else {
 			centreMarker.setLatLng([lat, lng]);
 			radiusCircle.setLatLng([lat, lng]).setRadius(radiusM);
@@ -91,8 +97,8 @@ const WN_MAP = (function () {
 		zones.forEach(zone => {
 			const colour = zone.threatened ? COLOURS.threat : COLOURS.zone;
 			const shape = L.circle([zone.lat, zone.lng], {
-				radius: zone.radius, color: colour, weight: visited.has(zone.id) ? 3 : 2,
-				fillColor: colour, fillOpacity: visited.has(zone.id) ? 0.38 : 0.26
+				radius: zone.radius, color: colour, weight: visited.has(zone.id) ? 4 : 3, opacity: 0.95,
+				fillColor: colour, fillOpacity: visited.has(zone.id) ? 0.5 : 0.38
 			});
 			shape.bindTooltip((visited.has(zone.id) ? "✓ " : "") + zone.name, { permanent: true, direction: "center", className: "zone-label", opacity: 1 });
 			shape.on("click", (e) => { L.DomEvent.stopPropagation(e); if (handlers.zoneTap) handlers.zoneTap(zone); });
