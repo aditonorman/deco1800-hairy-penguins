@@ -16,16 +16,52 @@ const WN_MAP = (function () {
 
 	const COLOURS = { zone: "#8fae4e", threat: "#e0764a", amber: "#e8a94b", cream: "#f6f2e4" };
 
+	/* Basemap providers, tried in order. OpenStreetMap's own tile servers are
+	   not used: their usage policy rejects pages opened from disk (no referrer)
+	   and returns an "Access blocked" image instead of an error, so the app
+	   could not even detect it. These providers allow light non-commercial use
+	   with attribution and fail loudly, which lets us fall through the list. */
+	const TILE_PROVIDERS = [
+		{
+			name: "CARTO Voyager",
+			url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+			options: { subdomains: "abcd", maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' }
+		},
+		{
+			name: "OpenTopoMap",
+			url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+			options: { subdomains: "abc", maxZoom: 17, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }
+		},
+		{
+			name: "Esri World Topo",
+			url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+			options: { maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS and others' }
+		}
+	];
+
+	/** Add basemap provider i; if none of its tiles load, move on to the next. */
+	function addTiles(i) {
+		const p = TILE_PROVIDERS[i];
+		let loads = 0, errors = 0;
+		const layer = L.tileLayer(p.url, p.options);
+		layer.on("tileload", () => { loads++; });
+		layer.on("tileerror", () => {
+			errors++;
+			if (loads > 0 || errors < 3) return;          // sporadic errors are fine
+			if (i + 1 < TILE_PROVIDERS.length) {
+				map.removeLayer(layer);
+				addTiles(i + 1);
+			} else if (!tileErrorShown) {
+				tileErrorShown = true;
+				WN_UI.toast("Map tiles need internet. Zones still work offline.", 3500);
+			}
+		});
+		layer.addTo(map);
+	}
+
 	function init(centre) {
 		map = L.map("map", { zoomControl: true, tap: true }).setView([centre.lat, centre.lng], 14);
-		L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-			maxZoom: 19,
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-		}).on("tileerror", () => {
-			if (tileErrorShown) return;
-			tileErrorShown = true;
-			WN_UI.toast("Map tiles need internet. Zones still work offline.", 3500);
-		}).addTo(map);
+		addTiles(0);
 
 		zoneLayer = L.layerGroup().addTo(map);
 		map.on("click", (e) => { if (handlers.mapTap) handlers.mapTap(e.latlng.lat, e.latlng.lng); });

@@ -163,6 +163,8 @@ Backups are in `/var/www/.zfs/snapshot/` for a week.
 
 ## Data credits
 
+Basemap tiles: CARTO (Voyager style) with OpenTopoMap and Esri as automatic fallbacks. OpenStreetMap's own tile servers are deliberately not used because their usage policy blocks pages opened from disk.
+
 Wildlife records: Queensland Government, WildNet Data API; Atlas of Living Australia and its
 contributors (iNaturalist Australia, BirdLife Australia Birdata and others). Reference images via
 the Atlas of Living Australia under their respective licences. Map tiles by OpenStreetMap contributors.

@@ -371,11 +371,19 @@ body[data-tab="walk"] .map-legend { display: none; }
 /* ---------- laptop / desktop --------------------------------------------- */
 @media (min-width: 900px) {
   body { padding-bottom: 0; }
+  /* body is a flex column, so "order" moves the tab bar up under the header */
+  .app-header { order: 0; }
+  .tabbar { order: 1; }
+  .notice { order: 2; }
+  .stats-strip { order: 3; }
+  main { order: 4; }
   .tabbar {
-    position: static; height: auto; display: flex; gap: 4px; border: 0; background: transparent; padding: 0;
+    position: static; height: auto; display: flex; gap: 6px; padding: 8px 24px;
+    background: var(--olive-deep); border: 0; border-bottom: 1px solid var(--line);
   }
-  .tabbar button { flex-direction: row; gap: 6px; padding: 8px 12px; border-radius: 999px; font-size: 0.8rem; }
-  .tabbar button.is-active { background: rgba(232, 169, 75, 0.15); }
+  .tabbar button { flex-direction: row; gap: 8px; padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; color: var(--cream-70); }
+  .tabbar button .ico { font-size: 1.1rem; }
+  .tabbar button.is-active { background: var(--amber); color: var(--olive-ink); }
   .app-header { padding: 10px 24px; }
   .stats-strip { grid-template-columns: repeat(3, 180px); padding: 12px 24px; }
   .explore-layout { flex-direction: row; gap: 16px; padding: 0 24px 24px; align-items: stretch; }
