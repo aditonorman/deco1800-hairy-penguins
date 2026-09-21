@@ -67,9 +67,9 @@ const WN_CONFIG = {
 
 	/* Unlock tiers. Higher number = stronger evidence. */
 	TIERS: {
-		1: { name: "Zone visit", short: "Visited", icon: "\u{1F97E}" },
-		2: { name: "Signs", short: "Signs", icon: "\u{1F43E}" },
-		3: { name: "Sighted", short: "Sighted", icon: "\u{1F440}" }
+		1: { name: "Zone visit", short: "Visited", icon: "pin" },
+		2: { name: "Signs", short: "Signs", icon: "paw" },
+		3: { name: "Sighted", short: "Sighted", icon: "eye" }
 	},
 
 	/* Walking mode */
@@ -98,8 +98,8 @@ const WN_CONFIG = {
 	ALA_BASE: "https://api.ala.org.au",
 	ALA_CLASSES: ["Mammalia", "Aves", "Reptilia", "Amphibia"],
 
-	/* Placeholder icons for species with no reference image, by group. */
-	GROUP_ICONS: { mammal: "\u{1F43E}", bird: "\u{1FAB6}", reptile: "\u{1F98E}", frog: "\u{1F438}" },
+	/* Placeholder silhouettes (WN_ICONS names) for species with no reference image. */
+	GROUP_ICONS: { mammal: "mammal", bird: "bird", reptile: "reptile", frog: "frog" },
 	GROUP_LABELS: { mammal: "Mammal", bird: "Bird", reptile: "Reptile", frog: "Frog" },
 
 	/* Habitat words used to name zones ("Kookaburra Ridge"). */

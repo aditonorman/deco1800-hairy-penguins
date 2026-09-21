@@ -37,11 +37,12 @@ const WN_UI = (function () {
 
 	function notice(text, kind) {
 		const el = $("#notice");
-		if (!text) { el.hidden = true; el.textContent = ""; return; }
-		el.textContent = text;
+		if (!text) { el.hidden = true; return; }
+		$("#notice-text").textContent = text;
 		el.classList.toggle("is-error", kind === "error");
 		el.hidden = false;
 	}
+	$("#notice-close").addEventListener("click", () => notice(null));
 
 	let toastTimer = null;
 	function toast(text, ms) {
@@ -79,7 +80,7 @@ const WN_UI = (function () {
 	function tierBadge(tier) {
 		const t = WN_CONFIG.TIERS[tier];
 		if (!t) return "";
-		return '<span class="tier tier-' + tier + '"><span aria-hidden="true">' + t.icon + "</span>" + t.name + "</span>";
+		return '<span class="tier tier-' + tier + '">' + WN_ICONS.svg(t.icon) + t.name + "</span>";
 	}
 
 	/** <img> for a species, or a group icon if there is no reference image. */
@@ -93,7 +94,7 @@ const WN_UI = (function () {
 			' data-fallback="' + U.esc(fallback) + '" data-group="' + U.esc(species.group) + '">';
 	}
 	function groupIcon(species) {
-		return '<span class="group-icon" aria-hidden="true">' + (WN_CONFIG.GROUP_ICONS[species.group] || "\u2753") + "</span>";
+		return '<span class="group-icon" aria-hidden="true">' + WN_ICONS.svg(WN_CONFIG.GROUP_ICONS[species.group] || "info") + "</span>";
 	}
 	// Image load errors bubble here (capture phase) so every species <img> gets the fallback chain.
 	document.addEventListener("error", (e) => {
@@ -103,7 +104,9 @@ const WN_UI = (function () {
 		if (next) { img.setAttribute("data-fallback", ""); img.src = next; return; }
 		const icon = document.createElement("span");
 		icon.className = "group-icon"; icon.setAttribute("aria-hidden", "true");
-		icon.textContent = WN_CONFIG.GROUP_ICONS[img.dataset.group] || "\u2753";
+		icon.innerHTML = WN_ICONS.svg(WN_CONFIG.GROUP_ICONS[img.dataset.group] || "info");
+		const caption = img.parentElement && img.parentElement.querySelector("figcaption");
+		if (caption) caption.remove();   // no photo, so no photo credit
 		img.replaceWith(icon);
 	}, true);
 
@@ -155,8 +158,8 @@ const WN_UI = (function () {
 					"</div>" +
 				"</div>" +
 				(canReport ? '<div class="species-actions">' +
-					'<button type="button" class="btn btn-primary btn-sm" data-report="3" data-key="' + s.key + '">\u{1F440} I spotted it</button>' +
-					'<button type="button" class="btn btn-leaf btn-sm" data-report="2" data-key="' + s.key + '">\u{1F43E} Saw signs</button>' +
+					'<button type="button" class="btn btn-primary btn-sm" data-report="3" data-key="' + s.key + '">' + WN_ICONS.svg("eye") + 'I spotted it</button>' +
+					'<button type="button" class="btn btn-leaf btn-sm" data-report="2" data-key="' + s.key + '">' + WN_ICONS.svg("paw") + 'Saw signs</button>' +
 				"</div>" : "") +
 			"</li>";
 		}).join("") || '<li class="empty">No species recorded here.</li>';
@@ -188,7 +191,6 @@ const WN_UI = (function () {
 		const entry = WN_STORE.getEntry(key);
 		const locked = !entry;
 		const photo = entry && entry.hasPhoto ? await WN_PHOTOS.get(key) : null;
-		const fact = WN_DATA.factFor(sp);
 		const img = WN_DATA.imageInfo(key);
 
 		$("#entry-title").textContent = locked ? "???" : sp.displayName;
@@ -202,10 +204,12 @@ const WN_UI = (function () {
 		kv.push(["Group", WN_CONFIG.GROUP_LABELS[sp.group] || sp.class]);
 		if (sp.family) kv.push(["Family", sp.family]);
 		if (sp.hint) kv.push(["Activity", sp.hint]);
+		if (sp.recordCount) kv.push(["Records", sp.recordCount + " around Brisbane in our data"]);
 		if (sp.wildnet && sp.wildnet.lastSeen) kv.push(["Last WildNet record", U.formatDate(sp.wildnet.lastSeen)]);
 		if (entry) {
 			kv.push(["Unlocked", U.formatDate(entry.unlockedAt.slice(0, 10)) + (entry.zoneName ? " at " + entry.zoneName : "") + (entry.place ? ", " + entry.place : "")]);
-			if (entry.tier > 1 && entry.tierAt !== entry.unlockedAt) kv.push(["Upgraded", U.formatDate(entry.tierAt.slice(0, 10))]);
+			if (entry.tier === 3) kv.push(["Sighted", U.formatDate(entry.tierAt.slice(0, 10))]);
+			else if (entry.tier === 2) kv.push(["Signs seen", U.formatDate(entry.tierAt.slice(0, 10))]);
 		}
 
 		$("#entry-body").innerHTML =
@@ -214,18 +218,18 @@ const WN_UI = (function () {
 				(sp.sensitive ? '<span class="status is-nt">Location withheld</span>' : "") + "</div>" +
 			(locked
 				? '<p class="summary">Walk into a habitat zone where this species has been recorded, or report a sighting during a walk, to unlock it.</p>'
-				: '<div class="fact ' + (fact.derived ? "is-derived" : "") + '"><span class="fact-label">' + (fact.derived ? "From the records" : "Fun fact") + "</span>" + U.esc(fact.text) + "</div>") +
+				: "") +
 			'<dl class="kv">' + kv.map(([k, v]) => "<dt>" + U.esc(k) + "</dt><dd>" + U.esc(v) + "</dd>").join("") + "</dl>" +
 			(entry ? '<p class="privacy-note">Your sightings and photos are personal records kept on this device. They are never shared or used to verify anything.</p>' : "");
 
 		const foot = [];
 		if (entry) {
-			foot.push('<button type="button" class="btn btn-primary btn-sm" data-act="photo">' + (photo ? "\u{1F4F7} Replace photo" : "\u{1F4F7} Add your photo") + "</button>");
-			if (photo) foot.push('<button type="button" class="btn btn-danger btn-sm" data-act="remove-photo">Delete photo</button>');
+			foot.push('<button type="button" class="btn btn-primary btn-sm" data-act="photo">' + WN_ICONS.svg("camera") + (photo ? "Replace photo" : "Add your photo") + "</button>");
+			if (photo) foot.push('<button type="button" class="btn btn-danger btn-sm" data-act="remove-photo">' + WN_ICONS.svg("trash") + 'Delete photo</button>');
 		}
 		if (entryActions && entryActions.canReport) {
-			if (!entry || entry.tier < 3) foot.push('<button type="button" class="btn btn-primary btn-sm" data-act="report" data-tier="3">\u{1F440} I spotted it</button>');
-			if (!entry || entry.tier < 2) foot.push('<button type="button" class="btn btn-leaf btn-sm" data-act="report" data-tier="2">\u{1F43E} Saw signs</button>');
+			if (!entry || entry.tier < 3) foot.push('<button type="button" class="btn btn-primary btn-sm" data-act="report" data-tier="3">' + WN_ICONS.svg("eye") + 'I spotted it</button>');
+			if (!entry || entry.tier < 2) foot.push('<button type="button" class="btn btn-leaf btn-sm" data-act="report" data-tier="2">' + WN_ICONS.svg("paw") + 'Saw signs</button>');
 		}
 		$("#entry-foot").innerHTML = foot.join("");
 		entryModal.hidden = false;
@@ -306,12 +310,12 @@ const WN_UI = (function () {
 			const photo = items[0].photo;
 			const imgSrc = photo || WN_DATA.imageFor(sp.key, "thumb");
 			html = '<div class="celebrate-kicker">' + U.esc(title || "New entry unlocked") + "</div>" +
-				(imgSrc ? '<img class="celebrate-img" src="' + U.esc(imgSrc) + '" alt="">' : '<div class="celebrate-img group-icon" style="position:static">' + (WN_CONFIG.GROUP_ICONS[sp.group] || "") + "</div>") +
+				(imgSrc ? '<img class="celebrate-img" src="' + U.esc(imgSrc) + '" alt="">' : '<div class="celebrate-img group-icon" style="position:static">' + WN_ICONS.svg(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</div>") +
 				"<h2 id=\"unlock-title\">" + U.esc(sp.displayName) + "</h2>" +
 				'<p class="entry-sci">' + U.esc(sp.sci) + "</p>" +
 				'<div class="entry-badges" style="justify-content:center">' + tierBadge(items[0].tier) + statusBadge(sp) + "</div>" +
 				'<div class="modal-foot" style="justify-content:center">' +
-					'<button type="button" class="btn btn-primary btn-sm" data-act="photo" data-key="' + sp.key + '">\u{1F4F7} Add your photo</button>' +
+					'<button type="button" class="btn btn-primary btn-sm" data-act="photo" data-key="' + sp.key + '">' + WN_ICONS.svg("camera") + 'Add your photo</button>' +
 					'<button type="button" class="btn btn-ghost btn-sm" data-act="close">Nice</button>' +
 				"</div>";
 		} else {
@@ -320,7 +324,7 @@ const WN_UI = (function () {
 				'<div class="celebrate-stack">' + shown.map(it => {
 					const sp = WN_DATA.getSpecies(it.key);
 					const src = WN_DATA.imageFor(it.key, "thumb");
-					return src ? '<img src="' + U.esc(src) + '" alt="' + U.esc(sp.displayName) + '">' : '<span class="more">' + (WN_CONFIG.GROUP_ICONS[sp.group] || "") + "</span>";
+					return src ? '<img src="' + U.esc(src) + '" alt="' + U.esc(sp.displayName) + '">' : '<span class="more">' + WN_ICONS.svg(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</span>";
 				}).join("") + (items.length > 5 ? '<span class="more">+' + (items.length - 5) + "</span>" : "") + "</div>" +
 				"<h2 id=\"unlock-title\">" + items.length + " new entries</h2>" +
 				'<p class="summary">' + U.esc(items.map(it => WN_DATA.getSpecies(it.key).displayName).slice(0, 6).join(", ")) + (items.length > 6 ? "…" : "") + "</p>" +

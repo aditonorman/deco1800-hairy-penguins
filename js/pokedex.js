@@ -60,10 +60,10 @@ const WN_POKEDEX = (function () {
 			const locked = !entry;
 			return '<li><button type="button" class="card ' + (locked ? "is-locked" : "is-unlocked") + '" data-key="' + sp.key + '" aria-label="' + (locked ? "Locked entry" : U.esc(sp.displayName)) + '">' +
 				'<div class="card-img">' + WN_UI.speciesImg(sp, "thumb") +
-					(entry ? '<span class="tier tier-' + entry.tier + '" title="' + WN_CONFIG.TIERS[entry.tier].name + '"><span aria-hidden="true">' + WN_CONFIG.TIERS[entry.tier].icon + "</span>" + WN_CONFIG.TIERS[entry.tier].short + "</span>" : "") +
+					(entry ? '<span class="tier tier-' + entry.tier + '" title="' + WN_CONFIG.TIERS[entry.tier].name + '">' + WN_ICONS.svg(WN_CONFIG.TIERS[entry.tier].icon) + WN_CONFIG.TIERS[entry.tier].short + "</span>" : "") +
 					'<div class="card-icons">' +
-						(entry && entry.hasPhoto ? '<span class="card-icon" title="You added a photo">\u{1F4F7}</span>' : "") +
-						(nearby.has(sp.key) && locked ? '<span class="card-icon" title="Recorded in a zone near you">\u{1F4CD}</span>' : "") +
+						(entry && entry.hasPhoto ? '<span class="card-icon" title="You added a photo">' + WN_ICONS.svg("camera", "", "Has your photo") + "</span>" : "") +
+						(nearby.has(sp.key) && locked ? '<span class="card-icon" title="Recorded in a zone near you">' + WN_ICONS.svg("target", "", "Near you") + "</span>" : "") +
 					"</div>" +
 				"</div>" +
 				'<div class="card-body">' +

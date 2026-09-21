@@ -9,6 +9,7 @@
 const WN_MAP = (function () {
 	"use strict";
 
+	const U = WN_UTIL;
 	let map, zoneLayer, centreMarker, radiusCircle, youMarker, accuracyCircle;
 	let zoneShapes = new Map();   // zone id -> L.Circle
 	let handlers = { zoneTap: null, mapTap: null };
@@ -102,7 +103,7 @@ const WN_MAP = (function () {
 				weight: zone.threatened ? 4 : (visited.has(zone.id) ? 4 : 3), opacity: 0.95,
 				fillColor: COLOURS.zone, fillOpacity: visited.has(zone.id) ? 0.5 : 0.36
 			});
-			shape.bindTooltip((visited.has(zone.id) ? "✓ " : "") + zone.name, { permanent: true, direction: "center", className: "zone-label", opacity: 1 });
+			shape.bindTooltip((visited.has(zone.id) ? WN_ICONS.svg("check", "icon-xs") : "") + U.esc(zone.name), { permanent: true, direction: "center", className: "zone-label", opacity: 1 });
 			shape.on("click", (e) => { L.DomEvent.stopPropagation(e); if (handlers.zoneTap) handlers.zoneTap(zone); });
 			shape.addTo(zoneLayer);
 			zoneShapes.set(zone.id, shape);

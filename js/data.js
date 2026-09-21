@@ -27,7 +27,6 @@ const WN_DATA = (function () {
 		speciesIndex: new Map(),
 		sightings: [],        // cached, precise records (WildNet + ALA)
 		images: {},
-		facts: {},
 		source: "cached",
 		live: null,           // { records, centre, radiusM, months, truncated, fetchedAt }
 		liveError: null,
@@ -57,7 +56,6 @@ const WN_DATA = (function () {
 		}
 		state.meta = bundle.meta;
 		state.images = bundle.images || {};
-		state.facts = window.WN_FACTS || bundle.facts || {};
 		state.species = bundle.species.map(decorateSpecies);
 		state.speciesIndex = new Map(state.species.map(s => [s.key, s]));
 		state.sightings = expandRows(bundle.sightings, state.species);
@@ -105,24 +103,6 @@ const WN_DATA = (function () {
 	}
 
 	function imageInfo(key) { return state.images[key] || null; }
-
-	/**
-	 * Fun fact for an entry. Curated facts live in data/facts.js; everything
-	 * else gets an honest fact derived from the records.
-	 */
-	function factFor(species) {
-		const curated = state.facts[species.key];
-		if (curated) return { text: curated, derived: false };
-		const bits = [];
-		if (species.recordCount) {
-			bits.push(species.recordCount === 1
-				? "Recorded once around Mt Coot-tha in our data"
-				: "Recorded " + species.recordCount + " times around Mt Coot-tha in our data");
-		}
-		if (species.hint && species.recordCount >= 4) bits.push(species.hint.toLowerCase());
-		if (species.wildnet && species.wildnet.lastSeen) bits.push("last WildNet record " + U.formatDate(species.wildnet.lastSeen));
-		return { text: bits.length ? bits.join(", ") + "." : "Nobody has written a fun fact for this one yet.", derived: true };
-	}
 
 	/* ---- records for the current source ----------------------------------- */
 
@@ -241,5 +221,5 @@ const WN_DATA = (function () {
 		return p;
 	}
 
-	return { load, getSpecies, allSpecies, meta, imageFor, imageInfo, factFor, records, setSource, source, fetchLive, liveInfo, liveError, state };
+	return { load, getSpecies, allSpecies, meta, imageFor, imageInfo, records, setSource, source, fetchLive, liveInfo, liveError, state };
 })();

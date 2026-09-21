@@ -26,7 +26,7 @@
 		     ============================================================ -->
 		<header class="app-header">
 			<div class="brand">
-				<span class="brand-mark" aria-hidden="true">&#x1F43E;</span>
+				<span class="brand-mark"><svg class="icon icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15.5" r="3.4" fill="currentColor" stroke="none"/><circle cx="6.5" cy="10.5" r="1.8" fill="currentColor" stroke="none"/><circle cx="9.8" cy="6.5" r="1.8" fill="currentColor" stroke="none"/><circle cx="14.2" cy="6.5" r="1.8" fill="currentColor" stroke="none"/><circle cx="17.5" cy="10.5" r="1.8" fill="currentColor" stroke="none"/></svg></span>
 				<h1>Wild Neighbours</h1>
 				<p class="tagline">Brisbane</p>
 			</div>
@@ -38,8 +38,11 @@
 			</div>
 		</header>
 
-		<!-- Notice bar: shown when the live API is down, data is old, etc. -->
-		<div id="notice" class="notice" role="status" hidden></div>
+		<!-- Notice bar: live-data results, errors, spots outside the cache. Dismissible. -->
+		<div id="notice" class="notice" role="status" hidden>
+			<span id="notice-text"></span>
+			<button type="button" class="notice-close" id="notice-close" aria-label="Dismiss"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+		</div>
 
 		<!-- Stats strip: personal progress, stored in localStorage -->
 		<section class="stats-strip" aria-label="Your progress">
@@ -107,11 +110,11 @@
 						<!-- Walking mode HUD (hidden until a walk starts) -->
 						<div class="walk-hud" id="walk-hud" hidden>
 							<div class="dpad" id="dpad" aria-label="Simulate walking">
-								<button type="button" class="up" data-dir="n" aria-label="Walk north">&#9650;</button>
-								<button type="button" class="left" data-dir="w" aria-label="Walk west">&#9664;</button>
+								<button type="button" class="up" data-dir="n" aria-label="Walk north"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+								<button type="button" class="left" data-dir="w" aria-label="Walk west"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
 								<button type="button" class="centre" disabled aria-hidden="true">25 m</button>
-								<button type="button" class="right" data-dir="e" aria-label="Walk east">&#9654;</button>
-								<button type="button" class="down" data-dir="s" aria-label="Walk south">&#9660;</button>
+								<button type="button" class="right" data-dir="e" aria-label="Walk east"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+								<button type="button" class="down" data-dir="s" aria-label="Walk south"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
 							</div>
 							<div class="hud-row">
 								<div class="seg" role="group" aria-label="Position source">
@@ -162,9 +165,9 @@
 
 		<!-- Bottom tab bar -->
 		<nav class="tabbar" aria-label="Main">
-			<button type="button" data-tab="map" class="is-active" aria-current="page"><span class="ico" aria-hidden="true">&#x1F5FA;</span>Map</button>
-			<button type="button" data-tab="walk"><span class="ico" aria-hidden="true">&#x1F6B6;</span>Walk</button>
-			<button type="button" data-tab="pokedex"><span class="ico" aria-hidden="true">&#x1F4D6;</span>Pokedex</button>
+			<button type="button" data-tab="map" class="is-active" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>Map</button>
+			<button type="button" data-tab="walk"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h5a4 4 0 0 0 0-8h-2a4 4 0 0 1 0-8h5"/></svg>Walk</button>
+			<button type="button" data-tab="pokedex"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/></svg>Pokedex</button>
 		</nav>
 
 		<!-- ============================================================
@@ -177,7 +180,7 @@
 					<h2 id="zone-title">Zone</h2>
 					<p class="sheet-meta" id="zone-meta"></p>
 				</div>
-				<button type="button" class="icon-btn" id="zone-close" aria-label="Close">&#x2715;</button>
+				<button type="button" class="icon-btn" id="zone-close" aria-label="Close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
 			</div>
 			<div class="sheet-body">
 				<ul id="zone-species"></ul>
@@ -192,7 +195,7 @@
 						<h2 class="entry-title" id="entry-title"></h2>
 						<p class="entry-sci" id="entry-sci"></p>
 					</div>
-					<button type="button" class="icon-btn" id="entry-close" aria-label="Close">&#x2715;</button>
+					<button type="button" class="icon-btn" id="entry-close" aria-label="Close"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
 				</div>
 				<div class="modal-body" id="entry-body"></div>
 				<div class="modal-foot" id="entry-foot"></div>
@@ -220,16 +223,16 @@
 
 		<!-- Scripts. Plain browser scripts, load order matters. -->
 		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-		<!-- Cached data bundle (generated by scripts/fetch-data.mjs) and curated facts.
-		     Loaded as scripts so the app also works from file://. -->
+		<!-- Cached data bundle (generated by scripts/fetch-data.mjs), loaded as a
+		     script so the app also works from file://. -->
 		<script src="data/cached.js"></script>
-		<script src="data/facts.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/util.js"></script>
 		<script src="js/zones.js"></script>
 		<script src="js/storage.js"></script>
 		<script src="js/data.js"></script>
 		<script src="js/photos.js"></script>
+		<script src="js/icons.js"></script>
 		<script src="js/ui.js"></script>
 		<script src="js/map.js"></script>
 		<script src="js/walk.js"></script>

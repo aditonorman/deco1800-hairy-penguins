@@ -79,6 +79,9 @@
 			filtered.length + " records in " + windowLabel() + ", within " + U.formatDistance(S.radius) + " of " + U.esc(loc.id === "custom" ? loc.place : loc.name) + ".";
 		if (!zones.length) text += " Try a wider radius or a longer time window.";
 		else if (zones.length < 4) text += " Few zones here. A wider radius or longer window will show more.";
+		if (S.source !== "live") {
+			text += ' <span class="muted">Cached ' + U.formatDate(WN_DATA.meta().fetchedAt.slice(0, 10)) + ".</span>";
+		}
 		if (S.source !== "live" && coverage !== "full") {
 			text += coverage === "none"
 				? " <strong>This spot is outside the cached area.</strong> Switch to Live to fetch records for it."
@@ -91,12 +94,6 @@
 
 	function setSourceButtons(src) {
 		WN_UI.$$("[data-source]").forEach(b => b.classList.toggle("is-active", b.dataset.source === src));
-	}
-
-	function cachedNotice() {
-		const m = WN_DATA.meta();
-		const areas = cacheAreas().map(a => a.name + (a.alaMonths ? " (" + a.alaMonths + " months of ALA" + (a.wildnetYears ? ", " + a.wildnetYears + " years of WildNet)" : ", all WildNet)") : "")).join("; ");
-		WN_UI.notice("Cached " + U.formatDate(m.fetchedAt.slice(0, 10)) + ": " + m.counts.sightings.toLocaleString() + " records covering " + areas + ". Switch to Live for fresh ALA records anywhere.");
 	}
 
 	async function goLive() {
@@ -124,7 +121,7 @@
 		WN_DATA.setSource("cached");
 		S.source = "cached"; WN_STORE.setSetting("source", "cached");
 		setSourceButtons("cached");
-		cachedNotice();
+		WN_UI.notice(null);
 		rebuild(false);
 	}
 
@@ -240,7 +237,7 @@
 		WN_POKEDEX.init(() => new Set(zones.flatMap(z => z.species.map(s => s.key))));
 		WN_UI.renderStats();
 		if (S.source === "live") await goLive();
-		else { setSourceButtons("cached"); cachedNotice(); rebuild(true); }
+		else { setSourceButtons("cached"); rebuild(true); }
 		WN_UI.showTab("map");
 	}
 

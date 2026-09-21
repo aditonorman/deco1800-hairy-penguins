@@ -64,6 +64,7 @@ async function visibleZonePoint(page) {
   const summary = await page.$eval("#explore-summary", el => el.textContent);
   console.log("summary:", summary.trim());
   check("zones built", /\d+ habitat zones/.test(summary) && !/^0 habitat/.test(summary.trim()));
+  check("no cached-data bar on load", await page.$eval("#notice", el => el.hidden));
   const zoneCount = await page.$$eval(".leaflet-interactive", els => els.length);
   check("zone shapes drawn on map", zoneCount > 2, zoneCount + " shapes");
   await page.screenshot({ path: path.join(SHOTS, `${mode}-1-map-phone.png`) });
@@ -154,7 +155,8 @@ async function visibleZonePoint(page) {
   await page.$eval(".card.is-unlocked", el => el.click());
   await sleep(400);
   check("entry detail opens", await page.$eval("#entry-modal", el => !el.hidden));
-  check("entry has fact", await page.$eval("#entry-body", el => /Fun fact|From the records/.test(el.textContent)));
+  check("entry shows unlock details", await page.$eval("#entry-body", el => /Unlocked/.test(el.textContent)));
+  check("no emoji anywhere in the page", await page.evaluate(() => !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(document.body.innerText)));
   check("entry has add photo button", (await page.$('#entry-foot [data-act="photo"]')) !== null);
   await page.screenshot({ path: path.join(SHOTS, `${mode}-8-entry-phone.png`) });
 

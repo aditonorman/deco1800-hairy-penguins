@@ -43,7 +43,7 @@ There are no accounts and no server.
 |---|---|
 | **Map** | Choose a location preset (Mt Coot-tha plus bushland reserves and parks across Brisbane), tap the map, or use your GPS position; set the radius (0.5 to 3 km) and the recency window (6 months by default). Habitat zones are drawn as leaf-green circles, with a coral ring when they include a threatened species. Tap a zone for the expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. Outside the cached areas the app fetches live ALA records automatically. |
 | **Walk** | The map follows you. Position comes from real GPS or a simulated position (tap the map to jump, D-pad or arrow keys to walk 25 m). Entering a zone shows a safety banner, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs** buttons. |
-| **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, a fun fact, conservation status and when/where you unlocked it. |
+| **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, conservation status, activity hint, record count and when/where you unlocked it. |
 | **Stats strip** | Zones visited, distance walked and species found, always visible. |
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). Unlocks show a short
@@ -80,13 +80,13 @@ It writes `meta.json` (areas, counts, column names), `species.json`, `sightings.
 `images.json`, cached thumbnails in `data/img/`, and `data/cached.js` (the JSON bundled as a
 script so the app runs from `file://`). Sightings are stored as compact rows,
 `[id, src, speciesIndex, lat, lng, date, precision, vetCode]`, and expanded on load by
-`js/data.js`. The curated fun facts in `data/facts.js` are hand-written.
+`js/data.js`.
 
 The **Cached / Live** toggle in the header switches sources. Live mode fetches fresh ALA
 occurrences for the current circle straight from the browser (pages of 100, the API limit) and
 keeps WildNet records from the cache. If you pick a spot outside the cached areas while online,
 the app switches to Live by itself. If the live request fails or times out, the app falls back
-to the cache and says so in the notice bar.
+to the cache and says so in a dismissible notice.
 
 ### Data rules
 
@@ -139,14 +139,15 @@ js/config.js            Tunable numbers, presets, labels
 js/util.js              Haversine, dates, activity hint, escaping
 js/zones.js             Habitat zone clustering (pure functions, Node-testable)
 js/storage.js           localStorage collection + stats, IndexedDB photos
-js/data.js              Cached data loading, live ALA fetch, images, facts
+js/data.js              Cached data loading, live ALA fetch, images
 js/photos.js            Pick, resize, store a personal photo
+js/icons.js             Inline SVG icons and animal silhouettes
 js/ui.js                Tabs, notices, badges, zone sheet, entry dialog, celebration
 js/map.js               Leaflet map, zone shapes, "you are here"
 js/walk.js              Walking mode: GPS / simulated position, zone entry, reports
 js/pokedex.js           Species grid and filters
 js/app.js               Bootstrap and top-level controls
-data/                   Cached WildNet + ALA data (generated) and curated facts
+data/                   Cached WildNet + ALA data (generated)
 scripts/fetch-data.mjs  Data fetch and cache script
 scripts/test-zones.mjs  Command-line checks for the clustering
 deploy.sh               Upload to the team zone
