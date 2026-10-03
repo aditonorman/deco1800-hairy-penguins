@@ -89,7 +89,9 @@ const WN_CONFIG = {
 	},
 
 	/* Walking mode */
-	SIM_STEP_M: 25,          // metres per D-pad press
+	SIM_STEP_M: 25,          // metres per arrow press (demo mode)
+	SIM_HOLD_MS: 280,        // hold an arrow this long and it keeps walking...
+	SIM_REPEAT_MS: 140,      // ...one step every this many ms
 	GPS_MAX_JUMP_M: 250,     // ignore GPS jumps bigger than this when adding distance
 	GPS_MIN_ACCURACY_M: 80,  // positions less accurate than this are shown but do not trigger zones
 

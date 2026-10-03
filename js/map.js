@@ -16,7 +16,7 @@ const WN_MAP = (function () {
 
 	const U = WN_UTIL;
 	const P = WN_CONFIG.PALETTE;
-	let map, zoneLayer, chipLayer, centreMarker, radiusCircle, youMarker, accuracyCircle;
+	let map, zoneLayer, chipLayer, radiusCircle, youMarker, accuracyCircle;
 	let cells = new Map();        // zone id -> { poly, zone, centre, shade }
 	let chips = [];               // { zone, marker }
 	let activeId = null;          // the zone the walker is standing in
@@ -89,13 +89,14 @@ const WN_MAP = (function () {
 
 	function on(name, fn) { handlers[name] = fn; }
 
-	/** Draw the search centre and radius, and optionally fit the view to it. */
+	/**
+	 * Draw the search area as a dashed circle and optionally fit the view to it.
+	 * There is no dot in the middle: it looked like a second walker next to you.
+	 */
 	function setCentre(lat, lng, radiusM, fit) {
-		if (!centreMarker) {
-			centreMarker = L.circleMarker([lat, lng], { radius: 5, color: P.cream, fillColor: P.amber, fillOpacity: 1, weight: 2, interactive: false }).addTo(map);
+		if (!radiusCircle) {
 			radiusCircle = L.circle([lat, lng], { radius: radiusM, color: P.amber, weight: 2.5, opacity: 0.85, dashArray: "8 8", fill: false, interactive: false }).addTo(map);
 		} else {
-			centreMarker.setLatLng([lat, lng]);
 			radiusCircle.setLatLng([lat, lng]).setRadius(radiusM);
 		}
 		if (fit !== false) fitCircle();
@@ -236,6 +237,8 @@ const WN_MAP = (function () {
 			youMarker.setLatLng([lat, lng]);
 			accuracyCircle.setLatLng([lat, lng]).setRadius(accuracyM || 0);
 		}
+		// the ring shows GPS accuracy; in demo mode there is none, so hide it completely
+		accuracyCircle.setStyle({ opacity: accuracyM ? 1 : 0, fillOpacity: accuracyM ? 0.08 : 0 });
 	}
 	function clearYou() {
 		if (youMarker) { map.removeLayer(youMarker); map.removeLayer(accuracyCircle); youMarker = accuracyCircle = null; }

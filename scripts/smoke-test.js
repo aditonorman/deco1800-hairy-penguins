@@ -254,6 +254,45 @@ function section(name) { console.log("\n" + name); }
   check("arrow steps add distance", (await store()).distance - d0 >= 99, Math.round((await store()).distance - d0) + " m");
   await settle();   // distance badges may pop up
 
+  // demo mode: the arrows are the only way to move
+  check("no search-centre dot next to you", (await page.$$eval('.leaflet-overlay-pane path[fill="#e8a94b"][fill-opacity="1"]', els => els.length)) === 0);
+  const posBefore = await page.evaluate(() => WN_WALK.position());
+  const emptySpot = await page.evaluate(() => {
+    const map = document.getElementById("map").getBoundingClientRect();
+    for (let y = map.top + 140; y < map.bottom - 200; y += 23) for (let x = map.left + 30; x < map.right - 90; x += 27) {
+      const el = document.elementFromPoint(x, y);
+      if (el && (el.classList.contains("leaflet-tile") || el.id === "map" || el.classList.contains("leaflet-container"))) return { x, y };
+    }
+    return null;
+  });
+  check("found an empty spot on the map to tap", emptySpot !== null);
+  if (emptySpot) { await page.mouse.click(emptySpot.x, emptySpot.y); await sleep(500); }
+  const posAfterTap = await page.evaluate(() => WN_WALK.position());
+  check("tapping the map does not move you in demo mode", posAfterTap.lat === posBefore.lat && posAfterTap.lng === posBefore.lng);
+  await clearCards();
+  await page.evaluate(() => WN_MAP.fitCircle());      // show every zone, not just the one you are in
+  await sleep(1000);
+  const chipPt = await visibleZonePoint();
+  check("a zone is visible to tap in demo mode", chipPt !== null);
+  if (chipPt) {
+    await page.mouse.click(chipPt.x, chipPt.y);
+    check("tapping a zone in demo mode opens it", await waitShown("#zone-sheet"));
+    const posAfterZone = await page.evaluate(() => WN_WALK.position());
+    check("...without moving you", posAfterZone.lat === posBefore.lat && posAfterZone.lng === posBefore.lng);
+    await page.click("#zone-sheet [data-close]"); await waitHidden("#zone-sheet");
+  }
+  const holdFrom = (await store()).distance;
+  const east = await (await page.$('#dpad [data-dir="e"]')).boundingBox();
+  await page.mouse.move(east.x + east.width / 2, east.y + east.height / 2);
+  await page.mouse.down(); await sleep(1150); await page.mouse.up();
+  await sleep(400);
+  const walkedHold = (await store()).distance - holdFrom;
+  check("holding an arrow keeps walking", walkedHold >= 100, Math.round(walkedHold) + " m");
+  const stopped = (await store()).distance;
+  await sleep(500);
+  check("letting go stops the walk", (await store()).distance === stopped);
+  await settle();
+
   // ---- alert filters ------------------------------------------------------------------
   section("alert filters");
   await clearCards();

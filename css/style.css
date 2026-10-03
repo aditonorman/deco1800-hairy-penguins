@@ -311,7 +311,8 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
   border: 1px solid var(--line); background: var(--glass); color: var(--cream); border-radius: 13px;
   display: grid; place-items: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--shadow-sm);
 }
-.dpad button:active { background: var(--amber); color: var(--olive-ink); }
+.dpad button { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.dpad button:active, .dpad button.is-pressed { background: var(--amber); color: var(--olive-ink); }
 .dpad .centre { font-size: 0.64rem; color: var(--cream-40); border-style: dashed; box-shadow: none; }
 .dpad .icon { width: 1.2rem; height: 1.2rem; }
 .dpad .centre { display: none; }

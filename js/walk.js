@@ -10,8 +10,9 @@
 
    Position comes from the phone's GPS (started when the user taps the
    find-me button, or automatically if permission was granted before) or,
-   in demo mode, from a simulated position moved by tapping the map or using
-   the arrow pad. Distance walked and zones visited are saved on the device.
+   in demo mode, from a simulated walker moved only with the arrow pad (tap
+   for one step, hold to keep walking) or the keyboard arrow keys. Distance
+   walked and zones visited are saved on the device.
    ========================================================================== */
 
 const WN_WALK = (function () {
@@ -32,6 +33,14 @@ const WN_WALK = (function () {
 	};
 
 	const hud = $("#hud-zone");
+	let holdTimer = null, repeatTimer = null;     // hold-to-walk on the demo arrows
+
+	function stopWalking() {
+		clearTimeout(holdTimer);
+		clearInterval(repeatTimer);
+		holdTimer = repeatTimer = null;
+		document.querySelectorAll("#dpad .is-pressed").forEach(b => b.classList.remove("is-pressed"));
+	}
 	// The status pill doubles as the way back into the zone you are standing in.
 	hud.addEventListener("click", () => {
 		const zone = state.zones.find(z => z.id === state.currentZoneId);
@@ -42,9 +51,26 @@ const WN_WALK = (function () {
 
 	function init(opts) {
 		state.onFarAway = opts && opts.onFarAway;
-		$("#dpad").addEventListener("click", (e) => {
+		// Demo arrows: a tap walks one step; holding keeps walking, like a game pad.
+		const pad = $("#dpad");
+		pad.addEventListener("pointerdown", (e) => {
 			const b = e.target.closest("[data-dir]");
-			if (b) step(b.dataset.dir);
+			if (!b || (e.pointerType === "mouse" && e.button !== 0)) return;
+			e.preventDefault();                       // no text selection or long-press menu
+			stopWalking();
+			b.classList.add("is-pressed");
+			try { b.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+			step(b.dataset.dir);
+			holdTimer = setTimeout(() => {
+				repeatTimer = setInterval(() => step(b.dataset.dir), WN_CONFIG.SIM_REPEAT_MS);
+			}, WN_CONFIG.SIM_HOLD_MS);
+		});
+		["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => pad.addEventListener(ev, stopWalking));
+		window.addEventListener("blur", stopWalking);
+		// keyboard users (Tab to an arrow, then Enter or Space) get one step per press
+		pad.addEventListener("click", (e) => {
+			const b = e.target.closest("[data-dir]");
+			if (b && e.detail === 0) step(b.dataset.dir);
 		});
 		document.addEventListener("keydown", (e) => {
 			if (state.source !== "sim" || WN_UI.tab() !== "map") return;
@@ -83,8 +109,9 @@ const WN_WALK = (function () {
 		if (on) {
 			stopGps();
 			if (!state.pos && state.centre) placeAtCentre();
-			if (!quiet) WN_UI.toast("Demo mode: tap the map to jump, use the arrows to walk.", 3000);
+			if (!quiet) WN_UI.toast("Demo mode: walk with the arrows. Hold one to keep walking.", 3000);
 		} else {
+			stopWalking();
 			state.pos = null;
 			WN_MAP.clearYou();
 			state.currentZoneId = null;
@@ -108,7 +135,7 @@ const WN_WALK = (function () {
 		else setHud("Demo: you are at " + (c.place || "the search centre"), "out");
 	}
 
-	/** Map tap while simulating = teleport (does not count as walking). */
+	/** Put the simulated walker straight onto a point (used by tests); not counted as walking. */
 	function teleport(lat, lng) {
 		if (state.source !== "sim") return false;
 		updatePosition(lat, lng, null, "sim", false);

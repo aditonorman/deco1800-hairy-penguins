@@ -227,16 +227,9 @@
 		if (!WN_UI.isPhone()) setControls(true);
 		$("#nearby-row").addEventListener("click", (e) => { const b = e.target.closest("[data-key]"); if (b) WN_UI.showEntry(b.dataset.key); });
 
-		// map interactions
-		WN_MAP.on("mapTap", (lat, lng) => {
-			if (WN_WALK.teleport(lat, lng)) return;          // demo mode: jump there
-			WN_UI.hideZone();
-		});
-		WN_MAP.on("zoneTap", (zone, latlng) => {
-			// demo mode: tapping a zone walks you into it (its alert card then slides in)
-			if (WN_WALK.isSimulating() && !WN_WALK.inZone(zone.id)) { WN_WALK.teleport(latlng.lat, latlng.lng); return; }
-			WN_WALK.openZone(zone);
-		});
+		// map interactions. Taps never move you, in demo mode too: the arrows are how you walk.
+		WN_MAP.on("mapTap", () => WN_UI.hideZone());
+		WN_MAP.on("zoneTap", (zone) => WN_WALK.openZone(zone));
 		WN_MAP.on("moved", (lat, lng) => {
 			const loc = currentLocation();
 			const far = U.haversine(lat, lng, loc.lat, loc.lng) > Math.max(900, S.radius * 0.8);
