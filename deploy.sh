@@ -7,7 +7,8 @@
 # On the UQ network (campus, Eduroam) or the UQ VPN, files go straight to the
 # zone. Anywhere else, the script goes through EAIT's public SSH host
 # (remote.labs.eait.uq.edu.au), so it works from overseas without the VPN.
-# Expect to type your UQ password for each host that does not have your SSH key.
+# EAIT asks for your UQ password, then shows a signin.uq.edu.au link to approve in
+# a browser before you press Enter. The zone itself uses your SSH key if it has one.
 #   VIA_EAIT=1 ./deploy.sh s1234567     always go through EAIT
 #
 # Files land in /var/www/htdocs, which is what nginx serves.
@@ -59,7 +60,8 @@ if [ "${VIA_EAIT:-}" != "1" ] && zone_reachable; then
 else
 	echo "The zone is not reachable directly (you are not on the UQ network or VPN)."
 	echo "Going through EAIT's SSH host ${JUMP_HOST}."
-	echo "Type your UQ password when asked."
+	echo "When asked: type your UQ password, open the sign-in link EAIT shows,"
+	echo "approve it in your browser, then come back here and press Enter."
 	echo
 	# One hop: EAIT forwards the connection to the zone.
 	if ! rsync "${RSYNC_OPTS[@]}" -e "ssh -o ProxyJump=${UQ_USER}@${JUMP_HOST}" \

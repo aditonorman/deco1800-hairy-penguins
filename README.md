@@ -35,10 +35,10 @@ python3 -m http.server 8000
 **Option C: the team zone.** Run `./deploy.sh your_uq_username` from the project folder. It
 uploads `index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `images/` and `data/` to
 `/var/www/htdocs`. On the UQ network or VPN it connects straight to the zone. Anywhere else,
-including overseas, it goes through EAIT's public SSH host `remote.labs.eait.uq.edu.au` and asks
-for your UQ password there. To skip the password, add your SSH public key to your EAIT account
-with the "Add SSH Keys" link on the EAIT Student Accounts page. `VIA_EAIT=1 ./deploy.sh ...`
-always uses the EAIT route.
+including overseas, it goes through EAIT's public SSH host `remote.labs.eait.uq.edu.au`. EAIT
+asks for your UQ password, then shows a `signin.uq.edu.au` link: open it, approve the sign-in in
+your browser, and press Enter in the terminal. `VIA_EAIT=1 ./deploy.sh ...` always uses the EAIT
+route.
 
 On a real phone, use the zone URL (HTTPS) so the browser allows geolocation and the camera.
 Add it to the home screen (Share > Add to Home Screen on iPhone, the install prompt on Android)
