@@ -164,11 +164,13 @@ const WN_WALK = (function () {
 		stopGps();
 		state.gpsStatus = "waiting";
 		setHud("Finding you…", "out");
+		$("#btn-locate").classList.add("is-busy");
 		let first = true;
 		state.watchId = navigator.geolocation.watchPosition(
 			(p) => {
 				const c = p.coords;
 				state.gpsStatus = "ok";
+				$("#btn-locate").classList.remove("is-busy");
 				const wasFollowing = state.follow;
 				if (first) state.follow = false;      // decide below whether to pan
 				updatePosition(c.latitude, c.longitude, c.accuracy, "gps", true);
@@ -191,6 +193,7 @@ const WN_WALK = (function () {
 				}
 			},
 			(err) => {
+				$("#btn-locate").classList.remove("is-busy");
 				state.gpsStatus = err.code === 1 ? "denied" : "error";
 				setHud(err.code === 1 ? "Location access was denied" : "Could not get a location fix", "out");
 				if (fromButton) WN_UI.toast(err.code === 1
@@ -213,7 +216,10 @@ const WN_WALK = (function () {
 	function updatePosition(lat, lng, accuracy, from, countDistance) {
 		if (state.pos && countDistance) {
 			const d = U.haversine(state.pos.lat, state.pos.lng, lat, lng);
-			if (from !== "gps" || d <= WN_CONFIG.GPS_MAX_JUMP_M) WN_STORE.addDistance(d);
+			if (from !== "gps" || d <= WN_CONFIG.GPS_MAX_JUMP_M) {
+				WN_STORE.addDistance(d);
+				WN_PROGRESS.schedule();
+			}
 			WN_UI.renderStats();
 		}
 		state.pos = { lat, lng };
@@ -254,7 +260,7 @@ const WN_WALK = (function () {
 
 	async function enterZone(zone) {
 		WN_MAP.pulseZone(zone.id);
-		const firstVisit = WN_STORE.visitZone(zone.id);
+		const firstVisit = WN_STORE.visitZone(zone, state.centre ? state.centre.place : null);
 		WN_UI.renderStats();
 		await WN_UI.safetyBanner(zone.name);
 		if (state.currentZoneId !== zone.id) return;
@@ -269,11 +275,12 @@ const WN_WALK = (function () {
 		WN_UI.showZone(zone, { canReport: true, onReport: report });
 		if (unlocked.length) {
 			WN_UI.renderStats();
-			document.dispatchEvent(new CustomEvent("wn:collection"));
+			// species celebration first; badge celebrations queue up behind it
 			WN_UI.celebrate(unlocked, (firstVisit ? "Zone visited: " : "Back in ") + zone.name);
 		} else if (firstVisit) {
 			WN_UI.toast("Zone visited. Everything here was already in your Pokedex.");
 		}
+		document.dispatchEvent(new CustomEvent("wn:collection"));
 	}
 
 	/** Self-reported sighting (tier 3) or signs (tier 2). */
@@ -283,10 +290,10 @@ const WN_WALK = (function () {
 		if (!r.changed) { WN_UI.toast("Already logged at this level or higher."); return; }
 		WN_UI.renderStats();
 		WN_UI.refreshZoneSheet();
-		document.dispatchEvent(new CustomEvent("wn:collection"));
 		const photo = r.entry.hasPhoto ? await WN_PHOTOS.get(key) : null;
 		WN_UI.hideEntry();
 		WN_UI.celebrate([{ key, tier, photo }], tier === 3 ? "Sighting logged" : "Signs logged");
+		document.dispatchEvent(new CustomEvent("wn:collection"));
 	}
 
 	function inZone(zoneId) { return state.currentZoneId === zoneId; }

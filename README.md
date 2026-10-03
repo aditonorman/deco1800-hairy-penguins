@@ -9,6 +9,10 @@ Pick a spot and a radius, see recent wildlife records as shaded **habitat zones*
 your personal Pokedex. Entering a zone always counts, so a walk with no sightings still makes
 progress. You can attach your own photo to any unlocked entry as a private keepsake.
 
+Progress earns **XP, ranger levels and 53 badges**, and you can **compare with friends** by
+swapping a share link. It is built mobile-first like a native app and can be installed to a
+phone's home screen.
+
 - **Live demo (UQ login):** https://deco1800teams-hairy-penguins.uqcloud.net/
 - **Repo:** https://github.com/aditonorman/deco1800-hairy-penguins
 
@@ -29,11 +33,13 @@ python3 -m http.server 8000
 ```
 
 **Option C: the team zone.** From the UQ network or VPN, `./deploy.sh your_uq_username`
-uploads `index.html`, `css/`, `js/`, `images/` and `data/` to the zone.
+uploads `index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `images/` and `data/`.
 
 On a real phone, use the zone URL (HTTPS) so the browser allows geolocation and the camera.
-Indoors, open Settings and turn on "Simulate my position". Everything is stored on the device with localStorage and IndexedDB.
-There are no accounts and no server.
+Add it to the home screen (Share > Add to Home Screen on iPhone, the install prompt on Android)
+and it opens full screen like an app, and opens offline after the first visit. Indoors, open
+Settings and turn on "Simulate my position". Everything is stored on the device with
+localStorage and IndexedDB. There are no accounts and no server.
 
 ## How it works
 
@@ -41,13 +47,61 @@ There are no accounts and no server.
 
 | View | What it does |
 |---|---|
-| **Map** | The main screen. Habitat zones are drawn as leaf-green circles, with a coral ring when they include a threatened species. The floating card shows where you are exploring; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window (6 months by default), or tap the map to search around any spot. Walking is always on: the find-me button starts GPS, the map follows you, and a status pill says which zone you are in. Entering a zone shows a safety prompt, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs**. Tap any zone for its expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. |
-| **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, conservation status, activity hint, record count and when and where you unlocked it. |
-| **Progress strip** | Species found, zones visited and distance walked, always visible. |
-| **Settings** (gear icon) | Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (tap the map to jump, arrows or arrow keys to walk 25 m), jump into the nearest zone, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
+| **Map** | The main screen. Habitat zones are leaf-green circles, gold once you have visited them, with a coral ring when they include a threatened species. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel of the most-recorded species; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. Entering a zone shows a safety prompt, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs**. |
+| **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
+| **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 53 badges by category, and a friends leaderboard. |
+| **Settings** (gear icon) | Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (tap the map or a zone to jump, arrows or arrow keys to walk 25 m), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). Unlocks show a short
-celebration card that closes itself after two seconds unless you hold it.
+celebration card (confetti, rays, the species photo) that closes itself after two seconds
+unless you hold it; badges and level-ups get their own celebration straight after. A
+three-slide intro explains the app on first visit.
+
+### Progression
+
+Everything is derived from what is saved on the device, so XP and badges never drift.
+
+| Source | XP |
+|---|---|
+| Species at zone visit / signs / sighted tier | 10 / 30 / 60 |
+| Rarity bonus (uncommon / rare / very rare) | +5 / +15 / +30 |
+| Each zone visited | 25 |
+| Every 100 m walked | 5 |
+| Each entry with your photo | 15 |
+| Badge (bronze / silver / gold / legendary) | 25 / 50 / 100 / 250 |
+
+Each level costs 50 XP more than the last (level 2 at 100 XP, level 3 at 250, level 5 at 700).
+Ranks run Fresh Tracks, Trail Scout, Bush Explorer, Wildlife Spotter, Habitat Ranger, Field
+Naturalist and Living Legend. Rarity comes from how many records a species has in the cached
+data: common (100+), uncommon (25+), rare (5+) and very rare.
+
+**Badges** (53, in bronze, silver, gold and holographic legendary):
+
+| Category | Examples |
+|---|---|
+| Collection | 1, 10, 25, 50, 100 and 250 species |
+| Animal groups | Birdwatcher, Twitcher, Flock Leader; mammals, reptiles and frogs; Full House (one of each group) |
+| Sightings and signs | First Sighting to Hawkeye (50 sightings); Track Reader to Master Tracker |
+| On the move | 1 km to 100 km walked, including Half Marathon and Marathon Ranger; 1 to 30 zones; zones in 3, 8 and 15 areas of Brisbane at least 2 km apart |
+| Conservation | Guardian (a threatened species), Aussie Icons and Brisbane Big Ten (koala, kookaburra, echidna, platypus, water dragon, lace monitor, grey kangaroo, tawny frogmouth, green tree frog, carpet python), Koala Moment, Rare Find |
+| Habits and journal | 3- and 7-day streaks, 30 active days, Four Seasons, 1, 10 and 25 photos |
+| Friends | First friend, five friends |
+| Secret | Two hidden badges with hints |
+
+The badge logic is pure functions in `js/progress.js`; `node scripts/test-progress.mjs` checks
+the catalogue, stats, streaks, seasons, XP, levels and friend cards.
+
+### Friends
+
+There is no server, so friends swap **ranger cards** as links. **Share my card** (on the Badges
+tab) opens the phone's share sheet, or copies a link like
+`https://deco1800teams-hairy-penguins.uqcloud.net/#friend=...`. Opening a friend's link adds
+them to your leaderboard on that device and opens a side-by-side comparison (XP, species,
+sightings, zones, distance, badges, best streak, areas, and the badges only one of you has).
+To update a friend, open a fresh link from them.
+
+A card holds only a random id, a nickname you can edit, counts and badge ids: no places, no
+coordinates, no photos and no species list. Cards are checked and cleaned when they are opened.
 
 ### Data pipeline
 
@@ -128,7 +182,8 @@ checks against the cached data (bounds, determinism, filters, uniqueness).
   moderated or used to verify a sighting. They can be replaced or deleted from the entry.
 - Sightings and signs are self-reported personal records for the user's own collection. Nothing
   is sent anywhere and nothing is framed as contributing scientific data.
-- No accounts, no backend, no database.
+- No accounts, no backend, no database. Friend comparison works by swapping links that carry
+  only counts and badges.
 
 ## Project layout
 
@@ -142,22 +197,41 @@ js/storage.js           localStorage collection + stats, IndexedDB photos
 js/data.js              Cached data loading, live ALA fetch, images
 js/photos.js            Pick, resize, store a personal photo
 js/icons.js             Inline SVG icons and animal silhouettes
-js/ui.js                Tabs, notices, badges, zone sheet, entry dialog, celebration
-js/map.js               Leaflet map, zone shapes, "you are here"
+js/progress.js          XP, levels, 53 badges, friend cards (pure functions, Node-testable)
+js/ui.js                Tabs, sheets, zone sheet, entry view, celebrations, confetti
+js/map.js               Leaflet map, zone shapes, ripples, "you are here"
 js/walk.js              Walking: GPS or simulated position, zone entry, reports
-js/pokedex.js           Species grid and filters
-js/app.js               Bootstrap, location card, settings sheet, demo tools
+js/pokedex.js           Numbered species grid, group tiles, filters and sorting
+js/badges.js            Badges tab: ranger card, badges, leaderboard, compare, share
+js/app.js               Bootstrap, explore card, intro, friend links, settings, demo tools
+sw.js                   Service worker: opens offline after the first visit
+manifest.webmanifest    Install to home screen (name, icons, colours)
+images/                 App icons
 data/                   Cached WildNet + ALA data (generated)
 scripts/fetch-data.mjs  Data fetch and cache script
 scripts/test-zones.mjs  Command-line checks for the clustering
+scripts/test-progress.mjs  Command-line checks for XP, badges and friend cards
+scripts/smoke-test.js   End-to-end browser test (needs puppeteer-core, see the file)
 deploy.sh               Upload to the team zone
 ```
 
 ## Design
 
-Palette from the team slide deck: dark olive `#404a1c`, panel olive `#2f3813`, cream `#f6f2e4`,
-amber `#e8a94b` for actions, leaf green `#8fae4e` for zones and coral `#e0764a` for threatened
-species. Fraunces for headings, DM Sans for UI, via Google Fonts. Mobile-first: a full-bleed map with a floating control card and a bottom tab bar; at laptop widths the card sits beside the map and the tabs move under the header.
+The base palette comes from the team slide deck: dark olive `#404a1c`, panel olive `#2f3813`,
+cream `#f6f2e4`, amber `#e8a94b` for actions, leaf green `#8fae4e` for zones and coral `#e0764a`
+for threatened species. A Brisbane "bush" palette adds colour Pokedex-style, one per animal type:
+kingfisher blue `#5aaee0` for birds, galah pink `#ec8fb1` for mammals, jacaranda `#a48be8` for
+reptiles and eucalyptus `#52c3a4` for frogs, with wattle gold `#f3cd52` for XP, rarity and gold
+medals. Fraunces for headings, DM Sans for UI, via Google Fonts. All icons are inline SVG.
+
+It is built like a native app: fixed header, full-bleed map, a floating glass tab bar with a
+sliding indicator, bottom sheets you can swipe down to close, safe-area padding for notched
+phones, 16 px inputs so iOS does not zoom, and haptic taps on Android. Motion includes a splash,
+the intro, view transitions, staggered card entrances, skeleton shimmer and fade-in photos,
+counting stats, zone pop-ins and entry ripples, a pulsing location marker, confetti and light
+rays on unlocks, shining and holographic medals, and animated XP and comparison bars. Everything
+respects the system "reduce motion" setting. At laptop widths the explore card sits beside the
+map, the Badges tab uses two columns and entries open as a two-panel card.
 
 ## Team zone
 
@@ -170,6 +244,7 @@ species. Fraunces for headings, DM Sans for UI, via Google Fonts. Mobile-first: 
 
 The zone runs Ubuntu 24.04 with nginx already enabled. Use `sudo systemctl restart nginx` and
 `sudo tail -f /var/log/nginx/error.log` (the course notes' `svcadm` is for the older image).
+After a deploy, phones that installed the app pick up the new version on the next launch.
 Backups are in `/var/www/.zfs/snapshot/` for a week.
 
 ## Data credits

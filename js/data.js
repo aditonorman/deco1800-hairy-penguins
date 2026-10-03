@@ -59,8 +59,27 @@ const WN_DATA = (function () {
 		state.species = bundle.species.map(decorateSpecies);
 		state.speciesIndex = new Map(state.species.map(s => [s.key, s]));
 		state.sightings = expandRows(bundle.sightings, state.species);
+		numberSpecies();
 		return state;
 	}
+
+	/**
+	 * Pokedex numbers: mammals, birds, reptiles, frogs, each A to Z. Sorted on a
+	 * copy, because sighting rows point at species by array position.
+	 */
+	function numberSpecies() {
+		const order = WN_CONFIG.GROUP_ORDER;
+		state.species.slice()
+			.sort((a, b) => (order.indexOf(a.group) - order.indexOf(b.group)) || a.displayName.localeCompare(b.displayName))
+			.forEach((s, i) => { s.no = i + 1; });
+	}
+
+	/** Rarity tier from the number of records (see WN_CONFIG.RARITY). */
+	function rarityFor(count) {
+		const tier = WN_CONFIG.RARITY.find(r => (count || 0) >= r.min) || WN_CONFIG.RARITY[WN_CONFIG.RARITY.length - 1];
+		return tier.id;
+	}
+	function rarityInfo(id) { return WN_CONFIG.RARITY.find(r => r.id === id) || WN_CONFIG.RARITY[WN_CONFIG.RARITY.length - 1]; }
 
 	/**
 	 * The fetch script stores sightings as compact rows
@@ -82,6 +101,7 @@ const WN_DATA = (function () {
 		s.displayName = s.common || s.sci;
 		s.hint = U.activityHint(s.months);
 		s.months = s.months || Array(12).fill(0);
+		s.rarity = rarityFor(s.recordCount);
 		return s;
 	}
 
@@ -198,6 +218,7 @@ const WN_DATA = (function () {
 			class: cls, group: CLASS_GROUP[cls] || "bird", family: null, taxonId: null, source: "ala-live",
 			conSig: false, sensitive: false, nca: null, epbc: null, wildnet: null, months: Array(12).fill(0), recordCount: 0
 		});
+		s.no = state.species.length + 1;
 		state.species.push(s);
 		state.speciesIndex.set(key, s);
 		lookupImage(s);   // fire and forget; the card updates when it lands
@@ -221,5 +242,5 @@ const WN_DATA = (function () {
 		return p;
 	}
 
-	return { load, getSpecies, allSpecies, meta, imageFor, imageInfo, records, setSource, source, fetchLive, liveInfo, liveError, state };
+	return { load, getSpecies, allSpecies, meta, imageFor, imageInfo, rarityInfo, records, setSource, source, fetchLive, liveInfo, liveError, state };
 })();

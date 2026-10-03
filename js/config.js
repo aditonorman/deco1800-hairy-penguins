@@ -79,6 +79,7 @@ const WN_CONFIG = {
 
 	/* Celebration modal auto-closes after this many ms unless the user holds it. */
 	CELEBRATE_MS: 2000,
+	CELEBRATE_BADGE_MS: 2600,
 
 	/* Personal photos are resized to fit this box before storing in IndexedDB. */
 	PHOTO_MAX_PX: 1024,
@@ -89,8 +90,7 @@ const WN_CONFIG = {
 		meta: "data/meta.json",
 		species: "data/species.json",
 		sightings: "data/sightings.json",
-		images: "data/images.json",
-		facts: "data/facts.json"
+		images: "data/images.json"
 	},
 
 	/* Atlas of Living Australia (CORS enabled, so usable live from the browser).
@@ -104,6 +104,60 @@ const WN_CONFIG = {
 
 	/* Habitat words used to name zones ("Kookaburra Ridge"). */
 	HABITAT_WORDS: ["Hollow", "Ridge", "Gully", "Thicket", "Creek", "Slope", "Grove", "Glade", "Flats", "Bend", "Knoll", "Scrub"],
+
+	/* ---- colour + progression ------------------------------------------ */
+
+	/* Brisbane "bush" palette layered on the slide-deck colours. CSS has the
+	   same values as variables; JS needs them for confetti and avatars. */
+	PALETTE: {
+		amber: "#e8a94b", leaf: "#8fae4e", coral: "#e0764a", cream: "#f6f2e4",
+		kingfisher: "#5aaee0", galah: "#ec8fb1", jacaranda: "#a48be8", eucalyptus: "#52c3a4", wattle: "#f3cd52"
+	},
+	/* Each animal group gets a "type" colour, Pokedex style. */
+	TYPE_COLORS: { mammal: "#ec8fb1", bird: "#5aaee0", reptile: "#a48be8", frog: "#52c3a4" },
+	GROUP_ORDER: ["mammal", "bird", "reptile", "frog"],
+	GROUP_PLURALS: { mammal: "Mammals", bird: "Birds", reptile: "Reptiles", frog: "Frogs" },
+
+	/* Rarity from how many records a species has in the cached data. */
+	RARITY: [
+		{ id: "common", label: "Common", min: 100, pips: 1 },
+		{ id: "uncommon", label: "Uncommon", min: 25, pips: 2 },
+		{ id: "rare", label: "Rare", min: 5, pips: 3 },
+		{ id: "veryrare", label: "Very rare", min: 0, pips: 4 }
+	],
+
+	/* XP rules. Everything is derived from saved progress, so XP never drifts. */
+	XP: {
+		tier: { 1: 10, 2: 30, 3: 60 },                  // per species, at its current tier
+		rarity: { common: 0, uncommon: 5, rare: 15, veryrare: 30 },
+		zone: 25,                                       // per zone visited
+		per100m: 5,                                     // per 100 m walked
+		photo: 15,                                      // per entry with your photo
+		badge: { bronze: 25, silver: 50, gold: 100, legendary: 250 }
+	},
+
+	/* Ranger titles by level. */
+	RANKS: [
+		{ level: 1, title: "Fresh Tracks" },
+		{ level: 3, title: "Trail Scout" },
+		{ level: 5, title: "Bush Explorer" },
+		{ level: 8, title: "Wildlife Spotter" },
+		{ level: 12, title: "Habitat Ranger" },
+		{ level: 16, title: "Field Naturalist" },
+		{ level: 20, title: "Living Legend" }
+	],
+
+	/* Brisbane's "Big Ten" for the Aussie Icons badges. */
+	ICONIC: [
+		"phascolarctos-cinereus", "dacelo-novaeguineae", "tachyglossus-aculeatus", "ornithorhynchus-anatinus",
+		"intellagama-lesueurii", "varanus-varius", "macropus-giganteus", "podargus-strigoides",
+		"litoria-caerulea", "morelia-spilota"
+	],
+	KOALA: "phascolarctos-cinereus",
+
+	/* Words for generated ranger nicknames ("Curious Echidna"). */
+	NICK_ADJ: ["Curious", "Quiet", "Swift", "Sunny", "Brave", "Gentle", "Keen", "Lucky", "Clever", "Wandering", "Bright", "Bold"],
+	NICK_NOUN: ["Echidna", "Kookaburra", "Wallaby", "Possum", "Galah", "Goanna", "Bilby", "Lorikeet", "Glider", "Magpie", "Frogmouth", "Dragon"],
 
 	STORAGE_KEY: "wildneighbours.v1",
 	DB_NAME: "wildneighbours",
