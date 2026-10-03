@@ -32,8 +32,13 @@ python3 -m http.server 8000
 # then open http://localhost:8000/
 ```
 
-**Option C: the team zone.** From the UQ network or VPN, `./deploy.sh your_uq_username`
-uploads `index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `images/` and `data/`.
+**Option C: the team zone.** Run `./deploy.sh your_uq_username` from the project folder. It
+uploads `index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `images/` and `data/` to
+`/var/www/htdocs`. On the UQ network or VPN it connects straight to the zone. Anywhere else,
+including overseas, it goes through EAIT's public SSH host `remote.labs.eait.uq.edu.au` and asks
+for your UQ password there. To skip the password, add your SSH public key to your EAIT account
+with the "Add SSH Keys" link on the EAIT Student Accounts page. `VIA_EAIT=1 ./deploy.sh ...`
+always uses the EAIT route.
 
 On a real phone, use the zone URL (HTTPS) so the browser allows geolocation and the camera.
 Add it to the home screen (Share > Add to Home Screen on iPhone, the install prompt on Android)
@@ -251,7 +256,7 @@ map, the Badges tab uses two columns and entries open as a two-panel card.
 | | |
 |---|---|
 | **Web address** | https://deco1800teams-hairy-penguins.uqcloud.net/ (behind UQ login by default) |
-| **SSH / SFTP host** | `deco1800teams-hairy-penguins.zones.eait.uq.edu.au` (UQ network or VPN only) |
+| **SSH / SFTP host** | `deco1800teams-hairy-penguins.zones.eait.uq.edu.au` (UQ network or VPN; from elsewhere, jump through `remote.labs.eait.uq.edu.au`) |
 | **Web root** | `/var/www/htdocs` |
 | **Deploy** | `./deploy.sh your_uq_username` |
 
