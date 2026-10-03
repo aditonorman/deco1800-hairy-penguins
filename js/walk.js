@@ -1,11 +1,14 @@
 /* ==========================================================================
-   Wild Neighbours - walking mode
+   Wild Neighbours - walking (always on)
    --------------------------------------------------------------------------
-   Tracks the walker's position (real GPS or simulated with the D-pad / map
-   taps), follows them on the map, and fires the zone-entry flow:
+   Tracks where the walker is and fires the zone-entry flow:
      safety banner -> unlock every species in the zone at "zone visit" tier
      -> zone summary with "I spotted it" / "Saw signs" buttons.
-   Distance walked and zones visited are saved to localStorage.
+
+   Position comes from the phone's GPS (started when the user taps the
+   find-me button, or automatically if permission was granted before) or,
+   in demo mode, from a simulated position moved by tapping the map or using
+   the arrow pad. Distance walked and zones visited are saved on the device.
    ========================================================================== */
 
 const WN_WALK = (function () {
@@ -13,86 +16,186 @@ const WN_WALK = (function () {
 
 	const U = WN_UTIL, $ = WN_UI.$;
 	const state = {
-		active: false,
-		source: "sim",          // "sim" or "gps"
+		source: "gps",          // "gps" or "sim"
 		pos: null,              // { lat, lng }
 		accuracy: null,
 		watchId: null,
 		follow: true,
 		currentZoneId: null,
 		zones: [],
-		place: ""
+		centre: null,           // search centre { lat, lng, place }
+		gpsStatus: "idle",      // idle | waiting | ok | denied | error
+		onFarAway: null         // callback(pos) when a GPS fix is far from the search area
 	};
 
-	const hud = $("#walk-hud");
+	const hud = $("#hud-zone");
 
-	/** The app hands over the current zones whenever they are rebuilt. */
-	function setZones(zones, place) {
-		state.zones = zones;
-		state.place = place;
-		if (state.active && state.pos) checkZone(true);
+	/* ---- wiring --------------------------------------------------------- */
+
+	function init(opts) {
+		state.onFarAway = opts && opts.onFarAway;
+		$("#dpad").addEventListener("click", (e) => {
+			const b = e.target.closest("[data-dir]");
+			if (b) step(b.dataset.dir);
+		});
+		document.addEventListener("keydown", (e) => {
+			if (state.source !== "sim" || WN_UI.tab() !== "map") return;
+			if (e.target.matches("input, select, textarea")) return;
+			const map = { ArrowUp: "n", ArrowDown: "s", ArrowLeft: "w", ArrowRight: "e" };
+			if (map[e.key]) { e.preventDefault(); step(map[e.key]); }
+		});
+		$("#btn-locate").addEventListener("click", locate);
+		$("#btn-follow").addEventListener("click", (e) => {
+			state.follow = !state.follow;
+			e.currentTarget.classList.toggle("is-active", state.follow);
+			e.currentTarget.setAttribute("aria-pressed", String(state.follow));
+			if (state.follow && state.pos) WN_MAP.panTo(state.pos.lat, state.pos.lng);
+		});
+		$("#btn-follow").classList.add("is-active");
+
+		if (WN_STORE.settings().simulate) setSimulate(true, true);
+		else autoStartGps();
 	}
 
-	function start(centre) {
-		if (state.active) return;
-		state.active = true;
-		state.currentZoneId = null;
-		WN_STORE.startWalk();
-		state.source = WN_STORE.settings().positionSource || "sim";
-		WN_UI.$$("[data-pos]").forEach(b => b.classList.toggle("is-active", b.dataset.pos === state.source));
-		hud.hidden = false;
-		WN_UI.setEntryActions({ canReport: true, onReport: report, zone: null });
-		if (state.source === "gps") startGps();
-		else {
-			const p = state.pos || centre;
-			updatePosition(p.lat, p.lng, null, "sim", false);
-			WN_MAP.zoomTo(p.lat, p.lng, 16);
-			setStatus("Simulated position. Tap the map to jump, use the arrows to walk 25 m at a time.");
+	/** The app hands over the current zones and centre whenever they are rebuilt. */
+	function setZones(zones, centre) {
+		state.zones = zones;
+		state.centre = centre;
+		if (state.source === "sim" && !state.pos) placeAtCentre();
+		if (state.pos) checkZone(true);
+	}
+
+	/* ---- demo mode (simulated position) ---------------------------------- */
+
+	function setSimulate(on, quiet) {
+		state.source = on ? "sim" : "gps";
+		WN_STORE.setSetting("simulate", on);
+		$("#dpad").hidden = !on;
+		document.body.classList.toggle("is-sim", on);
+		if (on) {
+			stopGps();
+			if (!state.pos && state.centre) placeAtCentre();
+			if (!quiet) WN_UI.toast("Demo mode: tap the map to jump, use the arrows to walk.", 3000);
+		} else {
+			state.pos = null;
+			WN_MAP.clearYou();
+			state.currentZoneId = null;
+			setHud("Tap the find-me button to start walking", "out");
+			autoStartGps();
 		}
 	}
+	function isSimulating() { return state.source === "sim"; }
 
-	function stop() {
-		if (!state.active) return;
-		state.active = false;
-		stopGps();
-		hud.hidden = true;
-		WN_MAP.clearYou();
-		WN_UI.hideZone();
-		WN_UI.setEntryActions(null);
-		state.currentZoneId = null;
-		setZoneText(null);
+	function placeAtCentre() {
+		const c = state.centre;
+		if (!c) return;
+		// Initial placement is silent: if the centre happens to sit inside a zone,
+		// the walker has to move or tap it rather than being greeted with a banner on load.
+		state.pos = { lat: c.lat, lng: c.lng };
+		WN_MAP.setYou(c.lat, c.lng, 0);
+		const zone = WN_ZONES.zoneAt(state.zones, c.lat, c.lng);
+		state.currentZoneId = zone ? zone.id : null;
+		if (zone) setHud("Demo: in " + zone.name + " \u00b7 " + zone.speciesCount + " species", "in");
+		else setHud("Demo: you are at " + (c.place || "the search centre"), "out");
 	}
 
-	function isActive() { return state.active; }
-
-	/* ---- position sources ----------------------------------------------------- */
-
-	function setSource(src) {
-		state.source = src;
-		WN_STORE.setSetting("positionSource", src);
-		WN_UI.$$("[data-pos]").forEach(b => b.classList.toggle("is-active", b.dataset.pos === src));
-		if (!state.active) return;
-		if (src === "gps") startGps();
-		else { stopGps(); setStatus("Simulated position. Tap the map to jump, use the arrows to walk."); }
+	/** Map tap while simulating = teleport (does not count as walking). */
+	function teleport(lat, lng) {
+		if (state.source !== "sim") return false;
+		updatePosition(lat, lng, null, "sim", false);
+		return true;
 	}
 
-	function startGps() {
-		if (!("geolocation" in navigator)) {
-			WN_UI.toast("This browser has no geolocation. Using simulation instead.");
-			setSource("sim");
+	/** Simulated step in a compass direction. */
+	function step(dir) {
+		if (state.source !== "sim") return;
+		if (!state.pos) { placeAtCentre(); return; }
+		const m = WN_CONFIG.SIM_STEP_M;
+		const north = dir === "n" ? m : dir === "s" ? -m : 0;
+		const east = dir === "e" ? m : dir === "w" ? -m : 0;
+		const p = U.offset(state.pos.lat, state.pos.lng, north, east);
+		updatePosition(p.lat, p.lng, null, "sim", true);
+	}
+
+	/** Demo shortcut: move into the nearest zone that has not been visited yet. */
+	function jumpToNearestZone() {
+		if (!state.zones.length) { WN_UI.toast("No zones here yet. Pick a spot with records first."); return; }
+		if (state.source !== "sim") { setSimulate(true, true); $("#sim-toggle").checked = true; }
+		const from = state.pos || state.centre;
+		const visited = new Set(WN_STORE.stats().zonesVisited);
+		const candidates = state.zones.filter(z => !visited.has(z.id) && z.id !== state.currentZoneId);
+		const pool = candidates.length ? candidates : state.zones.filter(z => z.id !== state.currentZoneId);
+		if (!pool.length) { WN_UI.toast("You have visited every zone here."); return; }
+		let best = pool[0], bestD = Infinity;
+		pool.forEach(z => { const d = U.haversine(from.lat, from.lng, z.lat, z.lng); if (d < bestD) { bestD = d; best = z; } });
+		state.follow = true;
+		WN_MAP.zoomTo(best.lat, best.lng, 16);
+		updatePosition(best.lat, best.lng, null, "sim", false);
+	}
+
+	/* ---- real GPS ---------------------------------------------------------- */
+
+	/** Start GPS silently if the browser already granted permission earlier. */
+	function autoStartGps() {
+		if (!("geolocation" in navigator)) { setHud("Location is not available in this browser", "out"); return; }
+		if (!navigator.permissions || !navigator.permissions.query) { setHud("Tap the find-me button to start walking", "out"); return; }
+		navigator.permissions.query({ name: "geolocation" }).then(p => {
+			if (p.state === "granted") startGps();
+			else setHud("Tap the find-me button to start walking", "out");
+		}).catch(() => setHud("Tap the find-me button to start walking", "out"));
+	}
+
+	/** Find-me button: ask for the position, follow it, and recentre the search if far away. */
+	function locate() {
+		if (state.source === "sim") {
+			// In demo mode the button recentres on the simulated walker.
+			if (state.pos) WN_MAP.panTo(state.pos.lat, state.pos.lng);
+			else placeAtCentre();
 			return;
 		}
-		setStatus("Waiting for a GPS fix…");
+		if (!("geolocation" in navigator)) { WN_UI.toast("This browser cannot share your location."); return; }
+		state.follow = true;
+		$("#btn-follow").classList.add("is-active");
+		startGps(true);
+	}
+
+	function startGps(fromButton) {
+		if (!("geolocation" in navigator)) return;
 		stopGps();
+		state.gpsStatus = "waiting";
+		setHud("Finding you…", "out");
+		let first = true;
 		state.watchId = navigator.geolocation.watchPosition(
 			(p) => {
 				const c = p.coords;
+				state.gpsStatus = "ok";
+				const wasFollowing = state.follow;
+				if (first) state.follow = false;      // decide below whether to pan
 				updatePosition(c.latitude, c.longitude, c.accuracy, "gps", true);
-				setStatus("GPS position, accurate to about " + Math.round(c.accuracy) + " m" +
-					(c.accuracy > WN_CONFIG.GPS_MIN_ACCURACY_M ? " (too rough to trigger zones yet)" : ""));
+				if (first) state.follow = wasFollowing;
+				if (first && state.follow) WN_MAP.panTo(c.latitude, c.longitude);
+				if (first) {
+					first = false;
+					const far = state.centre && U.haversine(c.latitude, c.longitude, state.centre.lat, state.centre.lng);
+					if (far != null && far > Math.max(5000, 3 * (WN_STORE.settings().radius || 1500))) {
+						const recentred = state.onFarAway && state.onFarAway({ lat: c.latitude, lng: c.longitude, distanceM: far, fromButton: Boolean(fromButton) });
+						if (!recentred) {
+							// stay on the chosen area instead of panning off to the walker
+							state.follow = false;
+							$("#btn-follow").classList.remove("is-active");
+							$("#btn-follow").setAttribute("aria-pressed", "false");
+							setHud("You are " + U.formatDistance(far) + " from " + (state.centre.place || "the search area"), "out");
+							WN_MAP.panTo(state.centre.lat, state.centre.lng);
+						}
+					}
+				}
 			},
 			(err) => {
-				setStatus("GPS unavailable: " + err.message + ". Switch to Simulate to keep going.");
+				state.gpsStatus = err.code === 1 ? "denied" : "error";
+				setHud(err.code === 1 ? "Location access was denied" : "Could not get a location fix", "out");
+				if (fromButton) WN_UI.toast(err.code === 1
+					? "Location is blocked for this site. Allow it in your browser, or use demo tools in settings."
+					: "No GPS fix yet. Try again outdoors, or use demo tools in settings.", 4000);
 			},
 			{ enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 }
 		);
@@ -100,6 +203,8 @@ const WN_WALK = (function () {
 	function stopGps() {
 		if (state.watchId != null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
 	}
+
+	/* ---- position + zones --------------------------------------------------- */
 
 	/**
 	 * Central position update.
@@ -116,38 +221,35 @@ const WN_WALK = (function () {
 		WN_MAP.setYou(lat, lng, from === "gps" ? accuracy : 0);
 		if (state.follow) WN_MAP.panTo(lat, lng);
 		const roughGps = from === "gps" && accuracy > WN_CONFIG.GPS_MIN_ACCURACY_M;
-		if (!roughGps) checkZone(false);
+		if (roughGps) setHud("GPS is rough here (about " + Math.round(accuracy) + " m). Keep walking.", "out");
+		else checkZone(false);
 	}
-
-	/** Simulated step in a compass direction. */
-	function step(dir) {
-		if (!state.active || !state.pos) return;
-		const m = WN_CONFIG.SIM_STEP_M;
-		const north = dir === "n" ? m : dir === "s" ? -m : 0;
-		const east = dir === "e" ? m : dir === "w" ? -m : 0;
-		const p = U.offset(state.pos.lat, state.pos.lng, north, east);
-		updatePosition(p.lat, p.lng, null, "sim", true);
-	}
-
-	/** Map tap while simulating = teleport (does not count as walking). */
-	function teleport(lat, lng) {
-		if (!state.active || state.source !== "sim") return;
-		updatePosition(lat, lng, null, "sim", false);
-	}
-
-	/* ---- zone entry --------------------------------------------------------------- */
 
 	function checkZone(silent) {
+		if (!state.pos) return;
 		const zone = WN_ZONES.zoneAt(state.zones, state.pos.lat, state.pos.lng);
 		if (!zone) {
-			// walked out of the zone: close its sheet so the D-pad and map are clear
-			if (state.currentZoneId) { state.currentZoneId = null; setZoneText(null); WN_UI.hideZone(); WN_UI.setEntryActions({ canReport: true, onReport: report, zone: null }); }
+			if (state.currentZoneId) {
+				state.currentZoneId = null;
+				WN_UI.hideZone();
+				WN_UI.setEntryActions(null);
+			}
+			setHud(nearestZoneText(), "out");
 			return;
 		}
 		if (zone.id === state.currentZoneId) return;
 		state.currentZoneId = zone.id;
-		setZoneText(zone);
+		setHud("In " + zone.name + " · " + zone.speciesCount + " species", "in");
 		if (!silent) enterZone(zone);
+	}
+
+	function nearestZoneText() {
+		if (!state.zones.length) return "No habitat zones here yet";
+		let best = null, bestD = Infinity;
+		state.zones.forEach(z => { const d = U.haversine(state.pos.lat, state.pos.lng, z.lat, z.lng) - z.radius; if (d < bestD) { bestD = d; best = z; } });
+		if (!best) return "Not in a habitat zone";
+		if (bestD > 20000) return "You are " + U.formatDistance(bestD) + " from the nearest zone";
+		return best.name + " is " + U.formatDistance(Math.max(0, bestD)) + " away";
 	}
 
 	async function enterZone(zone) {
@@ -155,12 +257,12 @@ const WN_WALK = (function () {
 		const firstVisit = WN_STORE.visitZone(zone.id);
 		WN_UI.renderStats();
 		await WN_UI.safetyBanner(zone.name);
-		if (!state.active || state.currentZoneId !== zone.id) return;
+		if (state.currentZoneId !== zone.id) return;
 
 		// Zone visit unlocks every species recorded in this zone (tier 1).
 		const unlocked = [];
 		zone.species.forEach(s => {
-			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place: state.place });
+			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place: state.centre ? state.centre.place : null });
 			if (r.changed) unlocked.push({ key: s.key, tier: 1 });
 		});
 		WN_UI.setEntryActions({ canReport: true, onReport: report, zone });
@@ -177,7 +279,7 @@ const WN_WALK = (function () {
 	/** Self-reported sighting (tier 3) or signs (tier 2). */
 	async function report(key, tier, zone) {
 		const z = zone || state.zones.find(x => x.id === state.currentZoneId) || null;
-		const r = WN_STORE.unlock(key, tier, { zoneName: z ? z.name : null, place: state.place });
+		const r = WN_STORE.unlock(key, tier, { zoneName: z ? z.name : null, place: state.centre ? state.centre.place : null });
 		if (!r.changed) { WN_UI.toast("Already logged at this level or higher."); return; }
 		WN_UI.renderStats();
 		WN_UI.refreshZoneSheet();
@@ -187,32 +289,17 @@ const WN_WALK = (function () {
 		WN_UI.celebrate([{ key, tier, photo }], tier === 3 ? "Sighting logged" : "Signs logged");
 	}
 
-	/* ---- HUD -------------------------------------------------------------------------- */
+	function inZone(zoneId) { return state.currentZoneId === zoneId; }
+	function currentZoneId() { return state.currentZoneId; }
+	function position() { return state.pos; }
 
-	function setStatus(text) { $("#hud-status").textContent = text; }
-	function setZoneText(zone) {
-		const el = $("#hud-zone");
-		if (zone) { el.textContent = "In " + zone.name + " · " + zone.speciesCount + " species"; el.classList.remove("is-out"); }
-		else { el.textContent = "Not in a habitat zone yet"; el.classList.add("is-out"); }
+	/* ---- HUD pill ---------------------------------------------------------------- */
+
+	function setHud(text, mode) {
+		hud.textContent = text;
+		hud.classList.toggle("is-in", mode === "in");
+		hud.classList.toggle("is-out", mode !== "in");
 	}
 
-	$("#dpad").addEventListener("click", (e) => {
-		const b = e.target.closest("[data-dir]");
-		if (b) step(b.dataset.dir);
-	});
-	document.addEventListener("keydown", (e) => {
-		if (!state.active || state.source !== "sim" || WN_UI.tab() !== "walk") return;
-		if (e.target.matches("input, select, textarea")) return;
-		const map = { ArrowUp: "n", ArrowDown: "s", ArrowLeft: "w", ArrowRight: "e" };
-		if (map[e.key]) { e.preventDefault(); step(map[e.key]); }
-	});
-	WN_UI.$$("[data-pos]").forEach(b => b.addEventListener("click", () => setSource(b.dataset.pos)));
-	$("#btn-follow").addEventListener("click", (e) => {
-		state.follow = !state.follow;
-		e.currentTarget.classList.toggle("is-active", state.follow);
-		e.currentTarget.setAttribute("aria-pressed", String(state.follow));
-		if (state.follow && state.pos) WN_MAP.panTo(state.pos.lat, state.pos.lng);
-	});
-
-	return { start, stop, isActive, setZones, setSource, teleport, step, report };
+	return { init, setZones, setSimulate, isSimulating, teleport, step, jumpToNearestZone, locate, report, inZone, currentZoneId, position };
 })();

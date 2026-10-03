@@ -15,7 +15,7 @@ const WN_UI = (function () {
 
 	/* ---- views + tabs ------------------------------------------------------ */
 
-	const views = { map: "view-explore", walk: "view-explore", pokedex: "view-pokedex" };
+	const views = { map: "view-map", pokedex: "view-pokedex" };
 	let currentTab = "map";
 	const tabListeners = [];
 
@@ -57,9 +57,12 @@ const WN_UI = (function () {
 
 	function renderStats() {
 		const st = WN_STORE.stats();
+		const found = WN_STORE.unlockedCount(), total = WN_DATA.allSpecies().length;
 		$("#stat-zones").textContent = st.zonesVisited.length;
 		$("#stat-distance").textContent = U.formatDistance(st.distanceM);
-		$("#stat-species").innerHTML = WN_STORE.unlockedCount() + "<small>/" + WN_DATA.allSpecies().length + "</small>";
+		$("#stat-species").textContent = found;
+		$("#stat-species-label").textContent = "of " + total + " species";
+		$("#progress-bar").style.width = (total ? Math.min(100, found / total * 100) : 0).toFixed(1) + "%";
 	}
 
 	/* ---- badges ------------------------------------------------------------------ */
@@ -134,6 +137,9 @@ const WN_UI = (function () {
 	function renderZoneSheet() {
 		const zone = sheetZone;
 		$("#zone-title").textContent = zone.name;
+		const hint = $("#zone-hint");
+		hint.hidden = !(sheetActions && sheetActions.hint);
+		hint.textContent = (sheetActions && sheetActions.hint) || "";
 		const src = [];
 		if (zone.sources.wn) src.push("WildNet " + zone.sources.wn);
 		if (zone.sources.ala) src.push("ALA " + zone.sources.ala);
@@ -176,6 +182,16 @@ const WN_UI = (function () {
 	});
 	$("#zone-close").addEventListener("click", hideZone);
 
+	/* ---- settings sheet ------------------------------------------------------------ */
+
+	const settingsSheet = $("#settings-sheet");
+	function showSettings(demo) {
+		hideZone();
+		settingsSheet.hidden = false;
+		if (demo) setTimeout(() => $("#demo-group").scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+	}
+	function hideSettings() { settingsSheet.hidden = true; }
+
 	/* ---- entry detail dialog ----------------------------------------------------------- */
 
 	const entryModal = $("#entry-modal");
@@ -217,7 +233,7 @@ const WN_UI = (function () {
 			'<div class="entry-badges">' + (entry ? tierBadge(entry.tier) : '<span class="tier tier-1" style="opacity:.6">Locked</span>') + statusBadge(sp) +
 				(sp.sensitive ? '<span class="status is-nt">Location withheld</span>' : "") + "</div>" +
 			(locked
-				? '<p class="summary">Walk into a habitat zone where this species has been recorded, or report a sighting during a walk, to unlock it.</p>'
+				? '<p class="summary">Walk into a habitat zone where this species has been recorded to unlock it, or log a sighting while you are in a zone.</p>'
 				: "") +
 			'<dl class="kv">' + kv.map(([k, v]) => "<dt>" + U.esc(k) + "</dt><dd>" + U.esc(v) + "</dd>").join("") + "</dl>" +
 			(entry ? '<p class="privacy-note">Your sightings and photos are personal records kept on this device. They are never shared or used to verify anything.</p>' : "");
@@ -378,7 +394,8 @@ const WN_UI = (function () {
 		if (!unlockModal.hidden) closeCelebration();
 		else if (!entryModal.hidden) hideEntry();
 		else if (!zoneSheet.hidden) hideZone();
+		else if (!settingsSheet.hidden) hideSettings();
 	});
 
-	return { $, $$, showTab, onTab, tab, notice, toast, renderStats, statusBadge, tierBadge, speciesImg, showZone, refreshZoneSheet, hideZone, currentZone, showEntry, hideEntry, setEntryActions, safetyBanner, celebrate };
+	return { $, $$, showTab, onTab, tab, notice, toast, renderStats, statusBadge, tierBadge, speciesImg, showZone, refreshZoneSheet, hideZone, currentZone, showSettings, hideSettings, showEntry, hideEntry, setEntryActions, safetyBanner, celebrate };
 })();

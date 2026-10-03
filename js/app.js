@@ -2,8 +2,8 @@
    Wild Neighbours - app bootstrap
    --------------------------------------------------------------------------
    Wires the modules together: loads data, builds zones for the chosen
-   location/radius/recency window, and handles the top-level controls
-   (location, radius, window, data source, tabs, start/end walk).
+   location / radius / recency window, and handles the top-level controls
+   (location card, settings sheet, tabs, data source, demo tools).
    ========================================================================== */
 
 (function () {
@@ -11,8 +11,10 @@
 
 	const U = WN_UTIL, $ = WN_UI.$;
 	const S = WN_STORE.settings();
+	const BRISBANE = { lat: -27.4698, lng: 153.0251 };
 	let zones = [];
 	let liveTimer = null;
+	let autoLiveKey = null;   // centre we already tried to fetch live for
 
 	/* ---- helpers ------------------------------------------------------------ */
 
@@ -24,15 +26,13 @@
 		}
 		return preset;
 	}
+	function shortName(loc) { return loc.id === "custom" ? "Your chosen spot" : loc.place || loc.name; }
 
 	function windowLabel() {
 		return S.window ? "the last " + (S.window === 12 ? "12 months" : S.window === 24 ? "2 years" : S.window + " months") : "all cached records";
 	}
 
-	/**
-	 * How well the cache covers a circle: "full", "partial" or "none".
-	 * The cache is a list of circles (meta.areas) built by the fetch script.
-	 */
+	/** How well the cache covers a circle: "full", "partial" or "none". */
 	function cacheAreas() {
 		const m = WN_DATA.meta();
 		return m.areas || [{ name: "cached area", lat: m.centre.lat, lng: m.centre.lng, radiusM: m.radiusM }];
@@ -47,21 +47,20 @@
 		return best;
 	}
 
-	let autoLiveKey = null;   // centre we already tried to fetch live for
-
 	/** Rebuild zones from the current records + settings and redraw everything. */
 	function rebuild(fit) {
 		const loc = currentLocation();
 
-		// Outside the cached circle? Fetch live once, automatically, when online.
+		// Outside the cached circles? Fetch live once, automatically, when online.
 		const coverage = cacheCoverage(loc);
 		const key = loc.lat.toFixed(3) + "," + loc.lng.toFixed(3) + "," + S.radius;
 		if (coverage === "none" && S.source !== "live" && navigator.onLine !== false && autoLiveKey !== key) {
 			autoLiveKey = key;
-			WN_UI.toast("No cached records here, fetching live from ALA\u2026", 2500);
+			WN_UI.toast("No cached records here, fetching live from ALA…", 2500);
 			goLive();
 			return;
 		}
+
 		const sensitive = new Set(WN_DATA.allSpecies().filter(s => s.sensitive).map(s => s.key));
 		const filtered = WN_ZONES.filterRecords(WN_DATA.records(), {
 			lat: loc.lat, lng: loc.lng, radiusM: S.radius,
@@ -71,29 +70,37 @@
 
 		WN_MAP.setCentre(loc.lat, loc.lng, S.radius, fit);
 		WN_MAP.renderZones(zones);
-		WN_WALK.setZones(zones, loc.place || loc.name);
+		WN_WALK.setZones(zones, { lat: loc.lat, lng: loc.lng, place: shortName(loc) });
 		WN_POKEDEX.render();
 
+		$("#explore-title").textContent = shortName(loc);
 		const speciesCount = new Set(zones.flatMap(z => z.species.map(s => s.key))).size;
-		let text = "<strong>" + zones.length + " habitat zones</strong> with <strong>" + speciesCount + " species</strong> from " +
-			filtered.length + " records in " + windowLabel() + ", within " + U.formatDistance(S.radius) + " of " + U.esc(loc.id === "custom" ? loc.place : loc.name) + ".";
-		if (!zones.length) text += " Try a wider radius or a longer time window.";
+		let text = "<strong>" + zones.length + " habitat zones</strong>, <strong>" + speciesCount + " species</strong>, " +
+			filtered.length + " records from " + windowLabel() + " within " + U.formatDistance(S.radius) + ".";
+		const farFromBrisbane = U.haversine(loc.lat, loc.lng, BRISBANE.lat, BRISBANE.lng) > 150000;
+		if (farFromBrisbane) text += " <strong>Wild Neighbours covers Brisbane.</strong> Pick a Brisbane spot to explore.";
+		else if (!zones.length) text += " Try a wider radius or a longer time window.";
 		else if (zones.length < 4) text += " Few zones here. A wider radius or longer window will show more.";
-		if (S.source !== "live") {
-			text += ' <span class="muted">Cached ' + U.formatDate(WN_DATA.meta().fetchedAt.slice(0, 10)) + ".</span>";
-		}
-		if (S.source !== "live" && coverage !== "full") {
-			text += coverage === "none"
-				? " <strong>This spot is outside the cached area.</strong> Switch to Live to fetch records for it."
-				: " Part of this circle is outside the cached area; Live mode covers all of it.";
-		}
+		if (S.source !== "live" && coverage === "partial") text += " Part of this circle is outside the cached data; Live covers all of it.";
 		$("#explore-summary").innerHTML = text;
+		updateDataHint();
 	}
 
 	/* ---- data source ------------------------------------------------------------ */
 
 	function setSourceButtons(src) {
 		WN_UI.$$("[data-source]").forEach(b => b.classList.toggle("is-active", b.dataset.source === src));
+		const pill = $("#data-pill");
+		pill.textContent = src === "live" ? "Live" : "Cached";
+		pill.classList.toggle("is-live", src === "live");
+	}
+
+	function updateDataHint() {
+		const m = WN_DATA.meta();
+		const live = WN_DATA.liveInfo();
+		$("#data-hint").textContent = S.source === "live" && live
+			? "Live: fresh records from the Atlas of Living Australia for the current circle (" + live.records.length + " records). WildNet records still come from the cache because its API blocks browser requests."
+			: "Cached: records downloaded " + U.formatDate(m.fetchedAt.slice(0, 10)) + " for Mt Coot-tha and greater Brisbane. Works offline. Switch to Live for the latest sightings anywhere.";
 	}
 
 	async function goLive() {
@@ -105,8 +112,7 @@
 			WN_DATA.setSource("live");
 			S.source = "live"; WN_STORE.setSetting("source", "live");
 			WN_UI.notice("Live: " + live.records.length + (live.truncated ? " of " + live.total : "") + " ALA records from " + windowLabel() +
-				", fetched " + new Date(live.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
-				". WildNet records come from the cache (its API blocks browser requests).");
+				", fetched " + new Date(live.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ".");
 		} catch (err) {
 			WN_DATA.setSource("cached");
 			S.source = "cached"; WN_STORE.setSetting("source", "cached");
@@ -132,6 +138,13 @@
 			clearTimeout(liveTimer);
 			liveTimer = setTimeout(goLive, 700);
 		}
+	}
+
+	function setCustomCentre(lat, lng, fit) {
+		S.location = "custom"; S.customLat = lat; S.customLng = lng;
+		WN_STORE.setSetting("location", "custom"); WN_STORE.setSetting("customLat", lat); WN_STORE.setSetting("customLng", lng);
+		$("#location-select").value = "custom";
+		settingsChanged(fit);
 	}
 
 	/* ---- controls ------------------------------------------------------------------ */
@@ -162,56 +175,42 @@
 		win.value = String(S.window);
 		win.addEventListener("change", () => { S.window = Number(win.value); WN_STORE.setSetting("window", S.window); settingsChanged(false); });
 
-		WN_UI.$$("[data-source]").forEach(b => b.addEventListener("click", () => b.dataset.source === "live" ? goLive() : goCached()));
-
-		$("#btn-use-location").addEventListener("click", () => {
-			if (!("geolocation" in navigator)) { WN_UI.toast("Geolocation is not available in this browser"); return; }
-			WN_UI.toast("Finding you…");
-			navigator.geolocation.getCurrentPosition(p => {
-				S.location = "custom"; S.customLat = p.coords.latitude; S.customLng = p.coords.longitude;
-				WN_STORE.setSetting("location", "custom"); WN_STORE.setSetting("customLat", S.customLat); WN_STORE.setSetting("customLng", S.customLng);
-				locSel.value = "custom";
-				settingsChanged(true);
-				if (WN_DATA.source() === "cached" && cacheCoverage({ lat: S.customLat, lng: S.customLng }) === "none") {
-					WN_UI.notice("You are outside the cached areas. Switch to Live to see records near you.");
-				}
-			}, err => WN_UI.toast("Could not get your location: " + err.message), { enableHighAccuracy: true, timeout: 15000 });
+		// collapsible controls on the floating card
+		const panel = $("#explore-panel"), toggle = $("#panel-toggle"), controls = $("#explore-controls");
+		toggle.addEventListener("click", () => {
+			const open = controls.hidden;
+			controls.hidden = !open;
+			panel.classList.toggle("is-open", open);
+			toggle.textContent = open ? "Done" : "Change";
+			toggle.setAttribute("aria-expanded", String(open));
 		});
 
-		// Map taps: choose a custom centre (explore) or teleport (simulated walk)
+		// Map taps: teleport when simulating, otherwise choose a custom centre
 		WN_MAP.on("mapTap", (lat, lng) => {
-			if (WN_UI.tab() === "walk") { WN_WALK.teleport(lat, lng); return; }
-			if (S.location !== "custom") return;
-			S.customLat = lat; S.customLng = lng;
-			WN_STORE.setSetting("customLat", lat); WN_STORE.setSetting("customLng", lng);
-			settingsChanged(true);
+			if (WN_WALK.teleport(lat, lng)) return;
+			setCustomCentre(lat, lng, false);
+			WN_UI.toast("Searching around the spot you tapped");
 		});
 		WN_MAP.on("zoneTap", (zone) => {
-			const walking = WN_WALK.isActive() && WN_UI.tab() === "walk";
-			WN_UI.showZone(zone, walking ? { canReport: true, onReport: WN_WALK.report } : null);
+			const here = WN_WALK.inZone(zone.id);
+			WN_UI.showZone(zone, { canReport: here, onReport: WN_WALK.report, hint: here ? null : "Walk into this zone to log a sighting or signs." });
 		});
 
 		// tabs
 		WN_UI.$$(".tabbar button").forEach(b => b.addEventListener("click", () => WN_UI.showTab(b.dataset.tab)));
-		WN_UI.onTab(tab => {
-			$("#explore-panel").hidden = (tab !== "map");
-			$("#walk-hud").hidden = !(tab === "walk" && WN_WALK.isActive());
-			if (tab === "walk" && !WN_WALK.isActive()) WN_WALK.start(currentLocation());
-			if (tab !== "pokedex") WN_MAP.invalidate();
-			if (tab !== "walk") WN_UI.hideZone();
-		});
-		$("#btn-start-walk").addEventListener("click", () => WN_UI.showTab("walk"));
+		WN_UI.onTab(tab => { if (tab === "map") WN_MAP.invalidate(); else WN_UI.hideZone(); });
 
-		// On phones the options panel can fold away so the map gets the space.
-		const panel = $("#explore-panel"), toggle = $("#panel-toggle");
-		toggle.addEventListener("click", () => {
-			const collapsed = panel.classList.toggle("is-collapsed");
-			toggle.textContent = collapsed ? "Show options" : "Hide options";
-			toggle.setAttribute("aria-expanded", String(!collapsed));
-			WN_MAP.invalidate();
-		});
-		$("#btn-end-walk").addEventListener("click", () => { WN_WALK.stop(); WN_UI.showTab("map"); WN_UI.toast("Walk saved. " + U.formatDistance(WN_STORE.stats().distanceM) + " walked in total."); });
+		// settings sheet
+		$("#btn-settings").addEventListener("click", () => WN_UI.showSettings());
+		$("#data-pill").addEventListener("click", () => WN_UI.showSettings());
+		$("#settings-close").addEventListener("click", WN_UI.hideSettings);
+		WN_UI.$$("[data-source]").forEach(b => b.addEventListener("click", () => b.dataset.source === "live" ? goLive() : goCached()));
 
+		// demo tools
+		const sim = $("#sim-toggle");
+		sim.checked = Boolean(S.simulate);
+		sim.addEventListener("change", () => WN_WALK.setSimulate(sim.checked));
+		$("#btn-jump").addEventListener("click", () => { WN_UI.hideSettings(); WN_UI.showTab("map"); WN_WALK.jumpToNearestZone(); });
 		$("#btn-reset").addEventListener("click", async () => {
 			if (!confirm("Clear your Pokedex, photos and walk stats on this device?")) return;
 			await WN_STORE.resetAll();
@@ -220,11 +219,35 @@
 		});
 
 		document.addEventListener("wn:collection", () => { WN_UI.renderStats(); WN_MAP.renderZones(zones); });
+		window.addEventListener("hashchange", handleHash);
+	}
+
+	/** #demo in the URL opens the settings sheet on the demo tools. */
+	function handleHash() {
+		if (location.hash === "#demo") WN_UI.showSettings(true);
+	}
+
+	/**
+	 * A GPS fix landed well outside the search area. If the walker is somewhere
+	 * the app covers (greater Brisbane), search around them instead and return
+	 * true. If they are far away (another city, another country), keep the
+	 * chosen spot, say so, and return false so the map stays put.
+	 */
+	function onFarAway(info) {
+		const place = shortName(currentLocation());
+		if (U.haversine(info.lat, info.lng, BRISBANE.lat, BRISBANE.lng) > 150000) {
+			WN_UI.toast("You are " + U.formatDistance(info.distanceM) + " from " + place + ". Wild Neighbours covers Brisbane, so the map stays here. Open settings for demo tools.", 5000);
+			return false;
+		}
+		WN_UI.toast("Searching around you instead", 2500);
+		setCustomCentre(info.lat, info.lng, true);
+		return true;
 	}
 
 	/* ---- boot --------------------------------------------------------------------- */
 
 	async function init() {
+		document.body.classList.add("has-card");
 		WN_MAP.init(currentLocation());
 		bindControls();
 		try {
@@ -238,7 +261,9 @@
 		WN_UI.renderStats();
 		if (S.source === "live") await goLive();
 		else { setSourceButtons("cached"); rebuild(true); }
+		WN_WALK.init({ onFarAway });
 		WN_UI.showTab("map");
+		handleHash();
 	}
 
 	document.addEventListener("DOMContentLoaded", init);

@@ -31,8 +31,8 @@ python3 -m http.server 8000
 **Option C: the team zone.** From the UQ network or VPN, `./deploy.sh your_uq_username`
 uploads `index.html`, `css/`, `js/`, `images/` and `data/` to the zone.
 
-For the walking mode on a real phone, use the zone URL (HTTPS) so the browser allows
-geolocation and the camera. Everything is stored on the device with localStorage and IndexedDB.
+On a real phone, use the zone URL (HTTPS) so the browser allows geolocation and the camera.
+Indoors, open Settings and turn on "Simulate my position". Everything is stored on the device with localStorage and IndexedDB.
 There are no accounts and no server.
 
 ## How it works
@@ -41,10 +41,10 @@ There are no accounts and no server.
 
 | View | What it does |
 |---|---|
-| **Map** | Choose a location preset (Mt Coot-tha plus bushland reserves and parks across Brisbane), tap the map, or use your GPS position; set the radius (0.5 to 3 km) and the recency window (6 months by default). Habitat zones are drawn as leaf-green circles, with a coral ring when they include a threatened species. Tap a zone for the expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. Outside the cached areas the app fetches live ALA records automatically. |
-| **Walk** | The map follows you. Position comes from real GPS or a simulated position (tap the map to jump, D-pad or arrow keys to walk 25 m). Entering a zone shows a safety banner, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs** buttons. |
-| **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, conservation status, activity hint, record count and when/where you unlocked it. |
-| **Stats strip** | Zones visited, distance walked and species found, always visible. |
+| **Map** | The main screen. Habitat zones are drawn as leaf-green circles, with a coral ring when they include a threatened species. The floating card shows where you are exploring; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window (6 months by default), or tap the map to search around any spot. Walking is always on: the find-me button starts GPS, the map follows you, and a status pill says which zone you are in. Entering a zone shows a safety prompt, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs**. Tap any zone for its expected animals: name, scientific name, conservation status, how recently it was recorded, and an activity hint. |
+| **Pokedex** | A card for every species in the area. Locked cards are greyed with `???`. Unlocked cards show a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The detail view shows the ALA reference image, your photo, conservation status, activity hint, record count and when and where you unlocked it. |
+| **Progress strip** | Species found, zones visited and distance walked, always visible. |
+| **Settings** (gear icon) | Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (tap the map to jump, arrows or arrow keys to walk 25 m), jump into the nearest zone, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). Unlocks show a short
 celebration card that closes itself after two seconds unless you hold it.
@@ -118,7 +118,7 @@ Zones are built in the browser by `js/zones.js` from the filtered records:
    from its member records, a species summary (count, latest date, threatened flag) and a name
    made from its most-recorded species plus a habitat word ("Kookaburra Ridge").
 
-The same functions decide when a walker is inside a zone. `node scripts/test-zones.mjs` runs
+The same functions decide when the walker is inside a zone. `node scripts/test-zones.mjs` runs
 checks against the cached data (bounds, determinism, filters, uniqueness).
 
 ### Privacy and scope decisions
@@ -144,9 +144,9 @@ js/photos.js            Pick, resize, store a personal photo
 js/icons.js             Inline SVG icons and animal silhouettes
 js/ui.js                Tabs, notices, badges, zone sheet, entry dialog, celebration
 js/map.js               Leaflet map, zone shapes, "you are here"
-js/walk.js              Walking mode: GPS / simulated position, zone entry, reports
+js/walk.js              Walking: GPS or simulated position, zone entry, reports
 js/pokedex.js           Species grid and filters
-js/app.js               Bootstrap and top-level controls
+js/app.js               Bootstrap, location card, settings sheet, demo tools
 data/                   Cached WildNet + ALA data (generated)
 scripts/fetch-data.mjs  Data fetch and cache script
 scripts/test-zones.mjs  Command-line checks for the clustering
@@ -157,8 +157,7 @@ deploy.sh               Upload to the team zone
 
 Palette from the team slide deck: dark olive `#404a1c`, panel olive `#2f3813`, cream `#f6f2e4`,
 amber `#e8a94b` for actions, leaf green `#8fae4e` for zones and coral `#e0764a` for threatened
-species. Fraunces for headings, DM Sans for UI, via Google Fonts. Mobile-first with a bottom tab
-bar; at laptop widths the controls sit beside the map and the tab bar moves into the header row.
+species. Fraunces for headings, DM Sans for UI, via Google Fonts. Mobile-first: a full-bleed map with a floating control card and a bottom tab bar; at laptop widths the card sits beside the map and the tabs move under the header.
 
 ## Team zone
 

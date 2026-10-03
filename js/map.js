@@ -28,12 +28,12 @@ const WN_MAP = (function () {
 		{
 			name: "OpenTopoMap",
 			url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-			options: { subdomains: "abc", maxZoom: 17, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }
+			options: { subdomains: "abc", maxZoom: 17, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM &middot; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }
 		},
 		{
 			name: "Esri World Topo",
 			url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-			options: { maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS and others' }
+			options: { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
 		},
 		{
 			name: "Esri World Street",
@@ -67,7 +67,9 @@ const WN_MAP = (function () {
 	}
 
 	function init(centre) {
-		map = L.map("map", { zoomControl: true, tap: true }).setView([centre.lat, centre.lng], 14);
+		map = L.map("map", { zoomControl: true, tap: true, attributionControl: false }).setView([centre.lat, centre.lng], 14);
+		// Attribution sits under the zoom buttons so the floating card never covers it.
+		L.control.attribution({ prefix: false, position: "topleft" }).addTo(map);
 		addTiles(0);
 
 		zoneLayer = L.layerGroup().addTo(map);
