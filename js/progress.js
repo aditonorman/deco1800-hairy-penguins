@@ -307,6 +307,7 @@ const WN_PROGRESS = (function () {
 
 	let lastXp = null;
 	let timer = null;
+	let pendingLoud = false;   // did anything in this burst come from a tap (not from walking)?
 
 	function input() {
 		return {
@@ -330,10 +331,12 @@ const WN_PROGRESS = (function () {
 
 	/**
 	 * Award any newly earned badges and handle level-ups.
-	 * @param {Object} opts  { celebrate: show the celebration (default true) }
+	 * @param {Object} opts  { celebrate: false = just a toast (start-up),
+	 *                         quiet: true = an alert card instead of a pop-up (earned by walking) }
 	 */
 	function refresh(opts) {
 		const celebrate = !(opts && opts.celebrate === false);
+		const quiet = Boolean(opts && opts.quiet);
 		let snap = snapshot();
 		const fresh = snap.evaluations.filter(ev => ev.eligible && !snap.earned[ev.badge.id]).map(ev => ev.badge);
 		fresh.forEach(b => WN_STORE.awardBadge(b.id));
@@ -348,7 +351,9 @@ const WN_PROGRESS = (function () {
 		const gained = lastXp === null ? 0 : snap.xp - lastXp;
 		lastXp = snap.xp;
 
-		if (celebrate && (fresh.length || levelUp)) {
+		if (celebrate && quiet && (fresh.length || levelUp)) {
+			WN_UI.notifyProgress({ badges: fresh, levelUp });
+		} else if (celebrate && (fresh.length || levelUp)) {
 			WN_UI.celebrateProgress({ badges: fresh, levelUp, xp: snap.xp, gained });
 		} else if (!celebrate && fresh.length) {
 			WN_UI.toast(fresh.length === 1 ? "You earned a badge: " + fresh[0].name : "You have " + fresh.length + " new badges waiting", 3200);
@@ -358,10 +363,19 @@ const WN_PROGRESS = (function () {
 		return snap;
 	}
 
-	/** Coalesce bursts of changes (a zone visit unlocks many species at once). */
-	function schedule() {
+	/**
+	 * Coalesce bursts of changes (a zone visit unlocks many species at once).
+	 * Pass { quiet: true } for changes caused by walking (zone entry, distance):
+	 * their badges arrive as alert cards. Anything the user tapped celebrates.
+	 */
+	function schedule(opts) {
+		if (!(opts && opts.quiet)) pendingLoud = true;
 		clearTimeout(timer);
-		timer = setTimeout(() => refresh(), 60);
+		timer = setTimeout(() => {
+			const loud = pendingLoud;
+			pendingLoud = false;
+			refresh({ quiet: !loud });
+		}, 60);
 	}
 
 	/** This user's card, ready to share. */

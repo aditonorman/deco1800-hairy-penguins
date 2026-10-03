@@ -213,15 +213,17 @@
 			toggle.setAttribute("aria-expanded", String(open));
 			if (open) setCompact(false);
 		};
-		const setCompact = (compact) => {
+		const setCompact = (compact, remember) => {
 			panel.classList.toggle("is-compact", compact);
 			handle.setAttribute("aria-expanded", String(!compact));
 			handle.setAttribute("aria-label", compact ? "Expand" : "Collapse");
-			WN_STORE.setSetting("cardCompact", compact);
+			if (remember !== false) WN_STORE.setSetting("cardCompact", compact);
 		};
 		toggle.addEventListener("click", () => setControls(controls.hidden));
 		handle.addEventListener("click", () => { if (!controls.hidden) setControls(false); else setCompact(!panel.classList.contains("is-compact")); });
-		setCompact(Boolean(S.cardCompact));
+		// Short phones start with the card folded so the map (and demo arrows) have room,
+		// until the walker chooses otherwise.
+		setCompact(S.cardCompact == null ? window.innerHeight < 760 : Boolean(S.cardCompact), false);
 		if (!WN_UI.isPhone()) setControls(true);
 		$("#nearby-row").addEventListener("click", (e) => { const b = e.target.closest("[data-key]"); if (b) WN_UI.showEntry(b.dataset.key); });
 
@@ -231,9 +233,9 @@
 			WN_UI.hideZone();
 		});
 		WN_MAP.on("zoneTap", (zone, latlng) => {
+			// demo mode: tapping a zone walks you into it (its alert card then slides in)
 			if (WN_WALK.isSimulating() && !WN_WALK.inZone(zone.id)) { WN_WALK.teleport(latlng.lat, latlng.lng); return; }
-			const here = WN_WALK.inZone(zone.id);
-			WN_UI.showZone(zone, { canReport: here, onReport: WN_WALK.report, hint: here ? null : "Walk into this zone to log a sighting or signs." });
+			WN_WALK.openZone(zone);
 		});
 		WN_MAP.on("moved", (lat, lng) => {
 			const loc = currentLocation();
@@ -255,6 +257,7 @@
 
 		// settings sheet
 		$("#btn-settings").addEventListener("click", () => WN_UI.showSettings());
+		bindAlerts();
 		$$("[data-source]").forEach(b => b.addEventListener("click", () => b.dataset.source === "live" ? goLive() : goCached()));
 		const sim = $("#sim-toggle");
 		sim.checked = Boolean(S.simulate);
@@ -269,13 +272,63 @@
 			WN_UI.toast("Progress cleared");
 		});
 
-		document.addEventListener("wn:collection", () => {
+		document.addEventListener("wn:collection", (e) => {
 			WN_UI.renderStats();
 			WN_MAP.renderZones(zones);
 			renderNearby();
-			WN_PROGRESS.schedule();
+			// collected by walking into a zone = quiet (badges come as alert cards)
+			WN_PROGRESS.schedule({ quiet: Boolean(e.detail && e.detail.quiet) });
 		});
 		window.addEventListener("hashchange", handleHash);
+	}
+
+	/* ---- alerts while walking ---------------------------------------------------------- */
+
+	/** "birds", "birds or frogs", "mammals, birds or frogs", "any animal". */
+	function groupsText(groups) {
+		const names = WN_CONFIG.GROUP_ORDER.filter(g => groups.has(g)).map(g => WN_CONFIG.GROUP_PLURALS[g].toLowerCase());
+		if (names.length === WN_CONFIG.GROUP_ORDER.length) return "any animal";
+		if (names.length <= 1) return names[0] || "";
+		return names.slice(0, -1).join(", ") + " or " + names[names.length - 1];
+	}
+
+	/** Settings: alert cards on or off, and which animal groups trigger zone alerts. */
+	function bindAlerts() {
+		const toggle = $("#alerts-toggle"), wrap = $("#alert-groups");
+		wrap.innerHTML = WN_CONFIG.GROUP_ORDER.map(g =>
+			'<button type="button" class="type-toggle t-' + g + '" data-group="' + g + '" aria-pressed="true">' +
+				I(WN_CONFIG.GROUP_ICONS[g]) + "<span>" + WN_CONFIG.GROUP_PLURALS[g] + "</span>" + I("check", "tt-check") + "</button>").join("");
+		const render = () => {
+			const on = S.alertsOn !== false;
+			const groups = new Set(S.alertGroups || WN_CONFIG.GROUP_ORDER);
+			toggle.checked = on;
+			$$(".type-toggle", wrap).forEach(b => {
+				const pressed = groups.has(b.dataset.group);
+				b.classList.toggle("is-on", pressed);
+				b.setAttribute("aria-pressed", String(pressed));
+				b.disabled = !on;
+			});
+			wrap.classList.toggle("is-off", !on);
+			$("#alert-groups-hint").textContent = !on
+				? "Alert cards are off. Species are still collected when you enter a zone."
+				: !groups.size ? "No zone alerts: pick at least one animal type."
+				: "You get a card for zones with " + groupsText(groups) + ".";
+		};
+		toggle.addEventListener("change", () => {
+			S.alertsOn = toggle.checked;
+			WN_STORE.setSetting("alertsOn", S.alertsOn);
+			render();
+		});
+		wrap.addEventListener("click", (e) => {
+			const b = e.target.closest("[data-group]");
+			if (!b || b.disabled) return;
+			const groups = new Set(S.alertGroups || WN_CONFIG.GROUP_ORDER);
+			if (groups.has(b.dataset.group)) groups.delete(b.dataset.group); else groups.add(b.dataset.group);
+			S.alertGroups = WN_CONFIG.GROUP_ORDER.filter(g => groups.has(g));
+			WN_STORE.setSetting("alertGroups", S.alertGroups);
+			render();
+		});
+		render();
 	}
 
 	/* ---- first-run intro ------------------------------------------------------------- */
@@ -321,7 +374,7 @@
 		processHash(h);
 	}
 	function processHash(h) {
-		if (h === "#demo") { WN_UI.showSettings(true); return; }
+		if (h === "#demo") { WN_UI.showSettings("demo"); return; }
 		const m = h.match(/^#friend=([A-Za-z0-9_-]+)/);
 		if (m) {
 			clearHash();

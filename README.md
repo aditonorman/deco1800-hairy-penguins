@@ -47,14 +47,17 @@ localStorage and IndexedDB. There are no accounts and no server.
 
 | View | What it does |
 |---|---|
-| **Map** | The main screen. Habitat zones are leaf-green circles, gold once you have visited them, with a coral ring when they include a threatened species. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel of the most-recorded species; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. Entering a zone shows a safety prompt, unlocks every species recorded there at *zone visit* tier, and opens the zone sheet with **I spotted it** and **Saw signs**. |
+| **Map** | The main screen. Habitat zones are drawn as separate cells: overlapping zones are split down the middle with a thin gap, neighbouring cells get different shades of green, visited zones turn gold, and a coral edge marks a threatened species. A chip on each zone shows how many species live there with a coloured dot per animal type; names appear when you zoom in. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. |
+| **Entering a zone** | Every species recorded there joins your Pokedex at *zone visit* tier straight away. Instead of a pop-up, a small alert card slides in at the side ("4 new birds collected") with a safety reminder; nothing opens until you tap it. Tapping the card, or the status pill while you are in the zone, opens the zone sheet with the new species marked **New** and **I spotted it** / **Saw signs** buttons. Cards close themselves after a few seconds unless touched, and can be swiped away. You choose which animals trigger a card (see Settings). |
 | **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
 | **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 53 badges by category, and a friends leaderboard. |
-| **Settings** (gear icon) | Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (tap the map or a zone to jump, arrows or arrow keys to walk 25 m), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
+| **Settings** (gear icon) | **Alerts while walking**: turn alert cards on or off, and pick which animal types (mammals, birds, reptiles, frogs) trigger a zone card. Species are collected either way; the zone sheet links straight here. Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (tap the map or a zone to jump, arrows or arrow keys to walk 25 m), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
-Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). Unlocks show a short
-celebration card (confetti, rays, the species photo) that closes itself after two seconds
-unless you hold it; badges and level-ups get their own celebration straight after. A
+Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). The app only interrupts
+you in response to something you did: logging a sighting or signs shows a short celebration
+card (confetti, rays, the species photo) that closes itself after two seconds, and badges
+earned that way get their own celebration. Anything that happens just because you walked
+(entering a zone, badges for distance or zones) arrives as an alert card instead. A
 three-slide intro explains the app on first visit.
 
 ### Progression
@@ -169,11 +172,21 @@ Zones are built in the browser by `js/zones.js` from the filtered records:
    the zone keeps a deterministic privacy offset of up to 120 m so a single record can never be
    pinpointed.
 5. **Finalise.** Radius = clamp(1.15 x spread + 60 m, 220 m, 420 m). Each zone gets a stable id
-   from its member records, a species summary (count, latest date, threatened flag) and a name
-   made from its most-recorded species plus a habitat word ("Kookaburra Ridge").
+   from its member records, a species summary (count, latest date, threatened flag, species per
+   animal group) and a name made from its most-recorded species plus a habitat word
+   ("Kookaburra Ridge").
+6. **Draw as cells.** Each zone starts as its circle and is cut along the line halfway to every
+   nearby zone centre, pulled back 7 m so neighbours keep a 14 m gap. Overlapping zones become
+   separate cells. Cells that share an edge get different shades (DSatur graph colouring), and
+   each cell's label sits at its centroid.
+7. **Detect.** You are in the zone whose centre is nearest, as long as you are inside its
+   circle. This is the same rule the drawing uses, so what you see on the map is exactly what
+   triggers a zone.
 
-The same functions decide when the walker is inside a zone. `node scripts/test-zones.mjs` runs
-checks against the cached data (bounds, determinism, filters, uniqueness).
+`node scripts/test-zones.mjs` checks this against the cached data: bounds, determinism, filters,
+uniqueness, that cells never overlap, that every label sits inside its own cell, that thousands
+of random points inside a drawn cell all trigger that zone, and that neighbouring cells never
+share a shade.
 
 ### Privacy and scope decisions
 
@@ -211,7 +224,7 @@ data/                   Cached WildNet + ALA data (generated)
 scripts/fetch-data.mjs  Data fetch and cache script
 scripts/test-zones.mjs  Command-line checks for the clustering
 scripts/test-progress.mjs  Command-line checks for XP, badges and friend cards
-scripts/smoke-test.js   End-to-end browser test (needs puppeteer-core, see the file)
+scripts/smoke-test.js   End-to-end browser test, 113 checks (needs puppeteer-core, see the file)
 deploy.sh               Upload to the team zone
 ```
 

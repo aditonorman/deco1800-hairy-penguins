@@ -1,11 +1,12 @@
 /**
  * Headless browser smoke test for Wild Neighbours.
  * Serves the project folder, loads the app in Chrome and walks through the
- * main flows: first-run intro, map and zones, GPS walking (emulated
- * positions), demo tools, unlock + badge celebrations, Pokedex, photo
- * attach, Badges tab, friend links, persistence, offline support and
- * layout at phone, small-phone and laptop sizes. Screenshots go to
- * scripts/screenshots/.
+ * main flows: first-run intro, zones drawn as separate cells with chips,
+ * GPS walking (emulated positions), quiet alert cards on zone entry, alert
+ * filters by animal group, demo tools, celebrations for things the user
+ * taps, Pokedex, photo attach, Badges tab, friend links, persistence,
+ * offline support and layout at phone, small-phone and laptop sizes.
+ * Screenshots go to scripts/screenshots/.
  *
  * One-off setup (not needed to run the app itself):
  *   npm install --no-save --no-package-lock puppeteer-core
@@ -80,24 +81,40 @@ function section(name) { console.log("\n" + name); }
     const loc = WN_CONFIG.LOCATIONS.find(l => l.id === S.location) || WN_CONFIG.LOCATIONS[0];
     const sensitive = new Set(WN_DATA.allSpecies().filter(s => s.sensitive).map(s => s.key));
     const f = WN_ZONES.filterRecords(WN_DATA.records(), { lat: loc.lat, lng: loc.lng, radiusM: S.radius, sinceIso: WN_UTIL.monthsAgoIso(S.window), excludeKeys: sensitive });
-    return WN_ZONES.buildZones(f, { speciesIndex: WN_DATA.state.speciesIndex }).map(z => ({ id: z.id, lat: z.lat, lng: z.lng, name: z.name, radius: z.radius }));
+    return WN_ZONES.buildZones(f, { speciesIndex: WN_DATA.state.speciesIndex }).map(z => ({ id: z.id, lat: z.lat, lng: z.lng, name: z.name, radius: z.radius, groups: z.groups }));
   });
-  /** Centre of a zone circle that is on screen and not under any floating panel. */
+  /** Centre of a zone's chip that is on screen and not under any floating panel. */
   const visibleZonePoint = () => page.evaluate(() => {
     const map = document.getElementById("map").getBoundingClientRect();
-    const blockers = ["#explore-panel", ".statbar", "#hud-zone", "#btn-search-here", ".map-side"].map(s => document.querySelector(s)).filter(el => el && !el.hidden).map(el => el.getBoundingClientRect());
-    const tab = document.getElementById("tabbar").getBoundingClientRect();
-    blockers.push(tab);
-    for (const p of document.querySelectorAll(".leaflet-interactive")) {
-      const b = p.getBoundingClientRect();
-      if (b.width < 30 || p.getAttribute("stroke") === "#e8a94b") continue;
+    const blockers = ["#explore-panel", ".statbar", "#hud-zone", "#btn-search-here", ".map-side", "#tabbar"].map(s => document.querySelector(s)).filter(el => el && !el.hidden).map(el => el.getBoundingClientRect());
+    for (const chip of document.querySelectorAll(".zone-chip:not(.is-hidden) .zc-pill")) {
+      const b = chip.getBoundingClientRect();
       const x = b.x + b.width / 2, y = b.y + b.height / 2;
-      if (x < map.left + 20 || x > map.right - 20 || y < map.top + 20 || y > map.bottom - 20) continue;
+      if (!b.width || x < map.left + 20 || x > map.right - 20 || y < map.top + 20 || y > map.bottom - 20) continue;
       if (blockers.some(r => x > r.left - 10 && x < r.right + 10 && y > r.top - 10 && y < r.bottom + 10)) continue;
       return { x, y };
     }
     return null;
   });
+  /** Visible chips never overlap each other. */
+  const chipsClear = () => page.evaluate(() => {
+    const rects = [...document.querySelectorAll(".zone-chip:not(.is-hidden)")].map(el => el.getBoundingClientRect()).filter(r => r.width);
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) return false;
+    }
+    return rects.length > 0;
+  });
+  /** Is the element at its own centre the top-most thing (not covered by a card or panel)? */
+  const onTop = (sel) => page.evaluate((s) => {
+    return [...document.querySelectorAll(s)].every(el => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return hit === el || el.contains(hit);
+    });
+  }, sel);
+  const cards = (kind) => page.$$eval(".notif" + (kind ? ".is-" + kind : ""), els => els.filter(e => !e.classList.contains("is-leaving")).length);
+  const clearCards = () => page.evaluate(() => document.querySelectorAll(".notif").forEach(n => n.remove()));
   const noOverflow = () => page.evaluate(() => {
     const views = ["view-map", "view-pokedex", "view-badges"].map(id => document.getElementById(id)).filter(v => !v.hidden);
     return document.documentElement.scrollWidth <= document.documentElement.clientWidth && views.every(v => v.scrollWidth <= v.clientWidth + 1);
@@ -129,7 +146,11 @@ function section(name) { console.log("\n" + name); }
   check("no data bar on load", !(await isShown("#notice")));
   check("demo arrows hidden by default", !(await isShown("#dpad")));
   check("no emoji anywhere", await page.evaluate(() => !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(document.body.innerText)));
-  check("zone circles drawn", (await page.$$eval(".leaflet-interactive", els => els.length)) > 4);
+  check("zones drawn as cells", (await page.$$eval(".leaflet-overlay-pane path", els => els.length)) > 4);
+  check("every zone has a chip", (await page.$$eval(".zone-chip", els => els.length)) === (await zoneList()).length);
+  check("visible chips never overlap", await chipsClear());
+  check("chips show animal-type dots", (await page.$$eval(".zone-chip .zc-dots i", els => els.length)) > 0);
+  check("no safety banner element any more", (await page.$("#safety-banner")) === null);
   check("likely-around-here carousel filled", (await page.$$eval("#nearby-row .nearby-item", els => els.length)) > 3);
   check("map credit visible", /OpenStreetMap|Esri/.test(await page.$eval("#map-credit", el => el.textContent)));
   if (server) check("GPS started on its own (permission granted earlier)", (await page.$(".you-marker")) !== null && /away|from/.test(await page.$eval("#hud-zone", el => el.textContent)), await page.$eval("#hud-zone", el => el.textContent));
@@ -163,23 +184,35 @@ function section(name) { console.log("\n" + name); }
     const z0 = zones[0];
     await page.setGeolocation({ latitude: z0.lat, longitude: z0.lng, accuracy: 10 });
     await page.click("#btn-locate");
-    check("entering a zone shows the safety banner", await waitShown("#safety-banner", 4000));
-    await shot("04-banner");
-    await page.click("#safety-ok");
-    check("species celebration", await waitShown("#unlock-modal", 3000));
-    await shot("05-celebrate-species");
-    const kickers = await drainCelebrations();
-    check("badge celebration follows the species one", kickers.length >= 2 && /badge/i.test(kickers[1]), kickers.join(" | "));
+    check("entering a zone slides in an alert card", await waitShown(".notif.is-zone", 4000));
+    await sleep(500);
+    check("no pop-up and no sheet opened by itself", !(await isShown("#unlock-modal")) && !(await isShown("#zone-sheet")));
+    check("the card carries the safety reminder", /Stay on the trail/.test(await page.$eval(".notif.is-zone", el => el.textContent)));
+    await shot("04-zone-card");
     const st = await store();
-    check("zone visit unlocked species", st.species > 0, st.species);
+    check("zone visit collected species quietly", st.species > 0, st.species);
     check("first badges earned (First Neighbour, Into the Wild)", st.badges.includes("col-1") && st.badges.includes("zone-1"), st.badges.join(","));
+    check("badges earned by walking arrive as a card, not a pop-up", (await cards("badge")) === 1 && !(await isShown("#unlock-modal")));
     check("level chip shows the level", Number(await page.$eval("#level-num", el => el.textContent)) === st.level, "level " + st.level);
     check("new-badge dot on the Badges tab", await isShown("#badges-dot"));
-    check("status pill names the zone", await page.$eval("#hud-zone", el => el.classList.contains("is-in") && /^In /.test(el.textContent)));
-    check("inside the zone: report buttons", (await page.$$eval('#zone-species [data-report="3"]', els => els.length)) > 0);
-    for (let i = 1; i <= 8; i++) { await page.setGeolocation({ latitude: z0.lat + i * 0.00135, longitude: z0.lng, accuracy: 10 }); await sleep(220); }
-    await sleep(500);
-    check("walking out clears the pill", await page.$eval("#hud-zone", el => el.classList.contains("is-out")));
+    check("status pill names the zone", await page.$eval("#hud-zone", el => el.classList.contains("is-in") && /^In /.test(el.textContent) && !el.disabled));
+    check("the zone you are in is highlighted", (await page.$$eval(".zone-chip.is-active", els => els.length)) === 1);
+    await page.click(".notif.is-zone .notif-main");
+    check("tapping the card opens the zone", await waitShown("#zone-sheet"));
+    check("sheet: report buttons, New tags and the safety line", (await page.$$eval('#zone-species [data-report="3"]', els => els.length)) > 0 &&
+      (await page.$$eval("#zone-species .new-tag", els => els.length)) > 0 && await page.$eval("#zone-hint", el => el.classList.contains("is-safety") && !el.hidden));
+    await shot("05-zone-sheet");
+    await page.click("#zone-sheet [data-close]"); await waitHidden("#zone-sheet");
+    await page.click("#hud-zone");
+    check("the status pill opens the zone too", await waitShown("#zone-sheet"));
+    await page.click("#zone-sheet [data-close]"); await waitHidden("#zone-sheet");
+    await clearCards();
+    // walk west in 150 m steps until well past the edge of the search area
+    let lastLng = z0.lng;
+    for (let i = 1; i <= 22; i++) { lastLng = z0.lng - i * 0.00152; await page.setGeolocation({ latitude: z0.lat, longitude: lastLng, accuracy: 10 }); await sleep(140); }
+    await sleep(600);
+    const outside = await page.evaluate((lat, lng) => !WN_ZONES.zoneAt((() => { const S = WN_STORE.settings(); const loc = WN_CONFIG.LOCATIONS[0]; return WN_ZONES.buildZones(WN_ZONES.filterRecords(WN_DATA.records(), { lat: loc.lat, lng: loc.lng, radiusM: S.radius, sinceIso: WN_UTIL.monthsAgoIso(S.window) }), { speciesIndex: WN_DATA.state.speciesIndex }); })(), lat, lng), z0.lat, lastLng);
+    check("walking out of every zone clears the pill", outside && await page.$eval("#hud-zone", el => el.classList.contains("is-out") && el.disabled));
     check("GPS walking counts distance", (await store()).distance > 500, Math.round((await store()).distance) + " m");
 
     section("far away (overseas)");
@@ -202,15 +235,16 @@ function section(name) { console.log("\n" + name); }
   const before = await store();
   await page.click("#btn-jump");
   check("jump closes settings and shows the arrows", await waitHidden("#settings-sheet") && await waitShown("#dpad"));
-  check("jump enters a zone", await waitShown("#safety-banner", 4000));
-  await page.click("#safety-ok");
-  await drainCelebrations();
+  check("jump enters a zone and shows a card", await waitShown(".notif.is-zone", 4000));
+  check("still no pop-up on zone entry", !(await isShown("#unlock-modal")) && !(await isShown("#zone-sheet")));
+  check("demo arrows are not covered by cards", await onTop("#dpad button"));
+  await page.click(".notif.is-zone .notif-main");
   check("zone sheet with report buttons", await waitShown("#zone-sheet") && (await page.$$eval('#zone-species [data-report="3"]', els => els.length)) > 0);
   await page.click('#zone-species [data-report="3"]');
   check("sighting celebration", await waitShown("#unlock-modal", 2000) && /Sighting/.test(await page.$eval("#unlock-card .celebrate-kicker", el => el.textContent)));
   await shot("07-sighting");
   const k2 = await drainCelebrations();
-  check("First Sighting badge celebrated", k2.some(k => /badge/i.test(k)) || (await store()).badges.includes("see-1"), k2.join(" | "));
+  check("a badge earned by tapping still celebrates", k2.some(k => /badge/i.test(k)) && (await store()).badges.includes("see-1"), k2.join(" | "));
   const afterJump = await store();
   check("sighting recorded", afterJump.sighted > before.sighted, afterJump.sighted);
   check("tier upgraded in the sheet", await page.$eval("#zone-species", el => /Sighted/.test(el.textContent)));
@@ -219,6 +253,52 @@ function section(name) { console.log("\n" + name); }
   for (let i = 0; i < 4; i++) { await page.click('#dpad [data-dir="n"]'); await sleep(70); }
   check("arrow steps add distance", (await store()).distance - d0 >= 99, Math.round((await store()).distance - d0) + " m");
   await settle();   // distance badges may pop up
+
+  // ---- alert filters ------------------------------------------------------------------
+  section("alert filters");
+  await clearCards();
+  await page.click("#btn-settings");
+  await waitShown("#settings-sheet");
+  check("alerts section with four animal toggles", (await page.$$eval("#alert-groups .type-toggle.is-on", els => els.length)) === 4);
+  for (const g of ["mammal", "bird", "reptile"]) await page.click(`#alert-groups [data-group="${g}"]`);
+  check("frogs only", (await page.$$eval("#alert-groups .type-toggle.is-on", els => els.map(e => e.dataset.group))).join() === "frog");
+  check("hint explains the choice", /frogs/.test(await page.$eval("#alert-groups-hint", el => el.textContent)));
+  await shot("08-alert-settings");
+  await page.click("#settings-sheet [data-close]"); await waitHidden("#settings-sheet");
+  const visitedNow = await page.evaluate(() => WN_STORE.stats().zonesVisited);
+  const pool = (await zoneList()).filter(z => !visitedNow.includes(z.id));
+  const noFrogs = pool.find(z => !z.groups.frog);
+  const before2 = (await store()).species;
+  await page.evaluate((z) => WN_WALK.teleport(z.lat, z.lng), noFrogs);
+  await sleep(1200);
+  check("zone without frogs: no card", (await cards("zone")) === 0, noFrogs.name);
+  check("...but its species are still collected", (await store()).species > before2);
+  await page.click("#btn-settings"); await waitShown("#settings-sheet");
+  for (const g of ["mammal", "bird", "reptile"]) await page.click(`#alert-groups [data-group="${g}"]`);
+  await page.click("#alerts-toggle");
+  check("master switch dims the toggles", await page.$eval("#alert-groups", el => el.classList.contains("is-off")));
+  await page.click("#settings-sheet [data-close]"); await waitHidden("#settings-sheet");
+  const other = (await zoneList()).find(z => z.id !== noFrogs.id && !visitedNow.includes(z.id));
+  await clearCards();
+  await page.evaluate((z) => WN_WALK.teleport(z.lat, z.lng), other);
+  await sleep(1200);
+  check("alerts off: no cards at all", (await cards()) === 0);
+  await page.click("#btn-settings"); await waitShown("#settings-sheet");
+  await page.click("#alerts-toggle");
+  await page.click("#settings-sheet [data-close]"); await waitHidden("#settings-sheet");
+  check("settings remembered", await page.evaluate(() => WN_STORE.settings().alertsOn === true && WN_STORE.settings().alertGroups.length === 4));
+  const third = (await zoneList()).find(z => z.id !== noFrogs.id && z.id !== other.id && !visitedNow.includes(z.id));
+  if (third) {
+    await page.evaluate((z) => WN_WALK.teleport(z.lat, z.lng), third);
+    check("alerts back on: card appears again", await waitShown(".notif.is-zone", 3000));
+    const swipe = await page.$(".notif.is-zone");
+    const box = await swipe.boundingBox();
+    await page.mouse.move(box.x + box.width - 40, box.y + 30);
+    await page.mouse.down(); await page.mouse.move(box.x - 60, box.y + 30, { steps: 8 }); await page.mouse.up();
+    await sleep(500);
+    check("swiping a card away dismisses it without opening the zone", (await cards("zone")) === 0 && !(await isShown("#zone-sheet")));
+  }
+  await settle();
 
   // ---- 5. pokedex ----------------------------------------------------------------
   section("pokedex");
@@ -318,6 +398,15 @@ function section(name) { console.log("\n" + name); }
 
   // ---- 8. layouts ------------------------------------------------------------------
   section("layouts");
+  await page.evaluate(() => WN_STORE.setSetting("cardCompact", null));   // as for someone who never folded the card
+  await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);
+  check("small phone: explore card starts folded", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));
+  await page.evaluate(() => WN_WALK.jumpToNearestZone());
+  await waitShown(".notif", 3000);
+  check("small phone: arrows stay clear of cards and panels", await onTop("#dpad button"), "4 arrows");
+  await shot("12a-small-phone-demo");
+  await clearCards();
   for (const [w, h, label] of [[375, 667, "small-phone"], [1366, 860, "laptop"]]) {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: w < 900, hasTouch: w < 900 });
     await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);

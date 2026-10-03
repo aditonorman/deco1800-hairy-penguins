@@ -68,6 +68,53 @@ check("zoneAt returns the zone at its own centre", Z.zoneAt(a, z0.lat, z0.lng) &
 const away = U.offset(z0.lat, z0.lng, 5000, 5000);
 check("zoneAt returns null far away", Z.zoneAt(a, away.lat, away.lng) === null);
 
+// ---- drawing shapes: overlapping zones become separate cells ----
+for (const id of ["mt-coot-tha", "toohey", "city-botanic"]) {
+	const loc = CFG.LOCATIONS.find(l => l.id === id);
+	const fz = Z.filterRecords(sightings, { lat: loc.lat, lng: loc.lng, radiusM: 1500, sinceIso: U.monthsAgoIso(6) });
+	const zs = Z.buildZones(fz, { speciesIndex: index });
+	const shapes = Z.zoneShapes(zs, { gutter: CFG.ZONE_GUTTER_M });
+	console.log(`\nshapes at ${loc.name}: ${zs.length} zones`);
+	check("one shape per zone, each a real polygon", shapes.length === zs.length && shapes.every(s => s.latlngs.length >= 3));
+	// flat metres around the first zone for geometry checks
+	const lat0 = zs[0].lat, lng0 = zs[0].lng, ky = 6371000 * Math.PI / 180, kx = ky * Math.cos(lat0 * Math.PI / 180);
+	const xy = ([lat, lng]) => ({ x: (lng - lng0) * kx, y: (lat - lat0) * ky });
+	const polys = shapes.map(s => s.latlngs.map(xy));
+	const inside = (pt, poly) => {
+		let c = false;
+		for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+			const a = poly[i], b = poly[j];
+			if ((a.y > pt.y) !== (b.y > pt.y) && pt.x < (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x) c = !c;
+		}
+		return c;
+	};
+	// 1. no two cells overlap: every vertex of a cell lies outside every other cell
+	let overlap = 0;
+	polys.forEach((p, i) => polys.forEach((q, j) => { if (i !== j && p.some(v => inside(v, q))) overlap++; }));
+	check("no two cells overlap", overlap === 0, overlap + " overlapping pairs");
+	// 2. a cell's label point sits inside its own cell
+	check("every label sits inside its own cell", shapes.every((s, i) => inside(xy([s.centre.lat, s.centre.lng]), polys[i])));
+	// 3. what you see is what triggers: any point inside a cell is in that zone
+	let checked = 0, wrong = 0;
+	for (let k = 0; k < 4000; k++) {
+		const lat = loc.lat + (Math.random() - 0.5) * 0.03, lng = loc.lng + (Math.random() - 0.5) * 0.03;
+		const pt = xy([lat, lng]);
+		const cell = polys.findIndex(p => inside(pt, p));
+		if (cell < 0) continue;
+		checked++;
+		const z = Z.zoneAt(zs, lat, lng);
+		if (!z || z.id !== zs[cell].id) wrong++;
+	}
+	check("points inside a drawn cell trigger that zone", wrong === 0, checked + " points checked");
+	// 4. cells that share an edge never share a shade
+	const shades = Z.shadeZones(shapes, CFG.ZONE_SHADES.length);
+	let clash = 0, edges = 0;
+	shapes.forEach((sh, i) => sh.neighbours.forEach(j => { if (i < j) { edges++; if (shades[i] === shades[j]) clash++; } }));
+	check("neighbouring cells get different shades", clash === 0, edges + " shared edges, " + clash + " clashes");
+	check("shading is deterministic", JSON.stringify(Z.shadeZones(Z.zoneShapes(zs, { gutter: CFG.ZONE_GUTTER_M }), CFG.ZONE_SHADES.length)) === JSON.stringify(shades));
+	check("zones list the animal groups recorded there", zs.every(z => Object.values(z.groups).reduce((a, b) => a + b, 0) === z.speciesCount));
+}
+
 // activity hint sanity
 check("activity hint: single peak", U.activityHint([0,0,0,0,0,0,0,0,0,0,20,2]) === "Most records in November");
 check("activity hint: two-month peak", U.activityHint([1,1,1,1,1,1,1,1,1,10,9,1]) === "Most active Oct–Nov");

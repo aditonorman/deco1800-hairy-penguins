@@ -65,6 +65,22 @@ const WN_CONFIG = {
 		jitter: 120          // privacy offset applied to tiny zones (metres)
 	},
 
+	/* How zones are drawn. Overlapping zones are split into separate cells
+	   with a gap this wide between them (metres), and neighbouring cells get
+	   different shades of green so they stand apart. */
+	ZONE_GUTTER_M: 14,
+	ZONE_SHADES: [
+		{ fill: "#8fae4e", line: "#4f6a22" },   // leaf
+		{ fill: "#5c9e57", line: "#2f6230" },   // fern
+		{ fill: "#a3b843", line: "#5c6c18" },   // moss
+		{ fill: "#4f9a7f", line: "#25604c" }    // bush green
+	],
+
+	/* Alerts while walking: a small card slides in on zone entry (and for
+	   badges earned while walking). Users choose which animals trigger zone
+	   alerts. Cards close themselves after this long unless touched. */
+	ALERT_MS: 12000,
+
 	/* Unlock tiers. Higher number = stronger evidence. */
 	TIERS: {
 		1: { name: "Zone visit", short: "Visited", icon: "pin" },

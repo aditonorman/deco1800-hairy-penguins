@@ -3,7 +3,8 @@
    --------------------------------------------------------------------------
    Tabs, notices, toasts, animated counters, the header level chip, bottom
    sheets (with swipe-to-close), the zone sheet, the species entry view, the
-   safety banner, and the celebrations (species unlocks, badges, level-ups).
+   quiet alert cards shown while walking, and the celebrations that answer
+   something the user did (logging a sighting, adding a photo, a friend).
    Other modules call into WN_UI; WN_UI never fetches data itself.
    ========================================================================== */
 
@@ -55,6 +56,7 @@ const WN_UI = (function () {
 		});
 		$("#tabbar").style.setProperty("--i", TABS.indexOf(tab));
 		document.body.dataset.tab = tab;
+		placeStack();
 		tabListeners.forEach(fn => fn(tab, changed));
 	}
 	function onTab(fn) { tabListeners.push(fn); }
@@ -187,7 +189,7 @@ const WN_UI = (function () {
 		const next = img.getAttribute("data-fallback");
 		if (next) { img.setAttribute("data-fallback", ""); img.src = next; return; }
 		const icon = document.createElement("span");
-		// keep context classes (celebrate-img, stack-img) so the silhouette sits where the photo was
+		// keep context classes (such as celebrate-img) so the silhouette sits where the photo was
 		icon.className = (img.className.replace(/\b(fade-img|is-loaded)\b/g, "") + " group-icon t-" + img.dataset.group).trim();
 		icon.setAttribute("aria-hidden", "true");
 		icon.innerHTML = I(WN_CONFIG.GROUP_ICONS[img.dataset.group] || "info");
@@ -294,12 +296,12 @@ const WN_UI = (function () {
 
 	const zoneSheet = $("#zone-sheet");
 	let sheetZone = null;
-	let sheetActions = null;  // { canReport, onReport(key, tier, zone), hint }
+	let sheetActions = null;  // { canReport, onReport(key, tier, zone), hint, inside, newKeys }
 
 	/**
 	 * Show the expected animals for a zone.
 	 * @param {Object} zone      built by WN_ZONES
-	 * @param {Object} actions   { canReport, onReport, hint }
+	 * @param {Object} actions   { canReport, onReport, hint, inside (you are standing in it), newKeys (just collected) }
 	 */
 	function showZone(zone, actions) {
 		sheetZone = zone;
@@ -317,17 +319,26 @@ const WN_UI = (function () {
 
 	function renderZoneSheet() {
 		const zone = sheetZone;
+		const a = sheetActions || {};
 		$("#zone-title").textContent = zone.name;
-		$("#zone-kicker").textContent = zone.threatened ? "Habitat zone · threatened species" : "Habitat zone";
+		$("#zone-kicker").textContent = a.inside ? "You are in this zone" : zone.threatened ? "Habitat zone \u00b7 threatened species" : "Habitat zone";
+		// inside: the safety reminder; outside: how to start logging
 		const hint = $("#zone-hint");
-		hint.hidden = !(sheetActions && sheetActions.hint);
-		hint.innerHTML = sheetActions && sheetActions.hint ? I("pin") + "<span>" + U.esc(sheetActions.hint) + "</span>" : "";
+		const hintHtml = a.inside
+			? I("shield") + "<span>Stay on the trail, keep your distance, and never feed or call animals.</span>"
+			: a.hint ? I("pin") + "<span>" + U.esc(a.hint) + "</span>" : "";
+		hint.hidden = !hintHtml;
+		hint.innerHTML = hintHtml;
+		hint.classList.toggle("is-safety", Boolean(a.inside));
 		const src = [];
 		if (zone.sources.wn) src.push("WildNet " + zone.sources.wn);
 		if (zone.sources.ala) src.push("ALA " + zone.sources.ala);
 		$("#zone-meta").textContent = zone.speciesCount + " species from " + zone.count + " records (" + src.join(", ") + ") · latest " + U.ago(zone.lastDate);
-		const canReport = Boolean(sheetActions && sheetActions.canReport);
-		$("#zone-species").innerHTML = zone.species.map((s, i) => {
+		const canReport = Boolean(a.canReport);
+		const fresh = new Set(a.newKeys || []);
+		// just-collected species first; otherwise most-recorded first
+		const list = fresh.size ? zone.species.slice().sort((x, y) => fresh.has(y.key) - fresh.has(x.key)) : zone.species;
+		$("#zone-species").innerHTML = list.map((s, i) => {
 			const sp = WN_DATA.getSpecies(s.key);
 			if (!sp) return "";
 			const entry = WN_STORE.getEntry(s.key);
@@ -335,7 +346,8 @@ const WN_UI = (function () {
 			return '<li class="species-row" style="--d:' + Math.min(i * 35, 400) + 'ms">' +
 				'<button type="button" class="species-thumb t-' + sp.group + (locked ? " is-locked" : "") + '" data-key="' + s.key + '" aria-label="Open ' + U.esc(sp.displayName) + '">' + speciesImg(sp, "thumb") + "</button>" +
 				'<div class="species-main">' +
-					'<div class="species-name"><button type="button" data-key="' + s.key + '">' + U.esc(sp.displayName) + "</button>" + (entry ? tierBadge(entry.tier) : "") + "</div>" +
+					'<div class="species-name"><button type="button" data-key="' + s.key + '">' + U.esc(sp.displayName) + "</button>" +
+						(fresh.has(s.key) ? '<span class="new-tag">New</span>' : "") + (entry ? tierBadge(entry.tier) : "") + "</div>" +
 					'<div class="species-sci">' + U.esc(sp.sci) + "</div>" +
 					'<div class="species-meta">' + typeChip(sp) + statusBadge(sp) +
 						'<span class="recency">recorded ' + U.esc(U.ago(s.lastDate)) + "</span>" +
@@ -348,9 +360,12 @@ const WN_UI = (function () {
 				"</div>" : "") +
 			"</li>";
 		}).join("") || '<li class="empty">No species recorded here.</li>';
+		$("#zone-species").insertAdjacentHTML("beforeend",
+			'<li class="sheet-foot-link"><button type="button" data-act="alert-settings">' + I("bell") + "Choose which animals alert you</button></li>");
 	}
 
 	zoneSheet.addEventListener("click", (e) => {
+		if (e.target.closest('[data-act="alert-settings"]')) { hideZone(); showSettings("alerts"); return; }
 		const report = e.target.closest("[data-report]");
 		if (report && sheetActions && sheetActions.onReport) {
 			sheetActions.onReport(report.dataset.key, Number(report.dataset.report), sheetZone);
@@ -362,12 +377,14 @@ const WN_UI = (function () {
 
 	/* ---- settings sheet ---------------------------------------------------------------------- */
 
-	function showSettings(demo) {
+	/** Open settings, optionally scrolled to a section: "alerts" or "demo". */
+	function showSettings(section) {
 		hideZone();
 		const el = openSheet("settings-sheet");
 		const body = $(".sheet-body", el);
 		body.scrollTop = 0;
-		if (demo) setTimeout(() => { body.scrollTop = $("#demo-group").offsetTop - 8; }, 60);
+		const target = section === true ? "demo" : section;
+		if (target) setTimeout(() => { const g = $("#" + target + "-group"); if (g) body.scrollTop = g.offsetTop - 8; }, 60);
 	}
 	function hideSettings() { closeSheet("settings-sheet"); }
 
@@ -471,25 +488,166 @@ const WN_UI = (function () {
 	});
 	$("#entry-close").addEventListener("click", hideEntry);
 
-	/* ---- safety banner ------------------------------------------------------------------------- */
+	/* ---- alert cards (quiet notifications while walking) ------------------------------------ */
 
-	const banner = $("#safety-banner");
-	let bannerResolve = null;
-	/** Show the on-entry safety prompt; resolves when dismissed (or after 6 s). */
-	function safetyBanner(zoneName) {
-		$("#safety-title").textContent = "You have entered " + zoneName;
-		banner.hidden = false;
-		vibrate(25);
-		return new Promise(resolve => {
-			bannerResolve = resolve;
-			setTimeout(() => { if (bannerResolve === resolve) dismissBanner(); }, 6000);
+	const stack = $("#notif-stack");
+	let notifSeq = 0;
+
+	/** On the map, cards sit just below the stat bar and status pill; elsewhere, under the header. */
+	function placeStack() {
+		if (currentTab === "map") {
+			const r = $(".map-top").getBoundingClientRect();
+			if (r.width) { stack.style.top = Math.round(r.bottom + 8) + "px"; stack.style.left = Math.round(r.left) + "px"; return; }
+		}
+		stack.style.top = "";
+		stack.style.left = "";
+	}
+	// "Search this area" appearing changes the height of the map's top bar
+	if ("ResizeObserver" in window) new ResizeObserver(placeStack).observe($(".map-top"));
+	window.addEventListener("resize", placeStack);
+
+	/**
+	 * Slide in a small card at the side. Nothing opens until it is tapped; it
+	 * closes itself after a while (unless touched), or can be swiped away.
+	 * @param {Object} n { key (replaces a card with the same key), kind, eyebrow, title, text,
+	 *                     media (html), safety (show the reminder), onOpen, ms }
+	 */
+	function notify(n) {
+		if (n.key) { const old = stack.querySelector('[data-key="' + n.key + '"]'); if (old) removeNotif(old, true); }
+		while (stack.children.length >= 3) removeNotif(stack.lastElementChild, true);   // newest on top, three at most
+		const ms = n.ms || WN_CONFIG.ALERT_MS;
+		const el = document.createElement("div");
+		el.className = "notif" + (n.kind ? " is-" + n.kind : "");
+		el.dataset.id = "n" + (++notifSeq);
+		if (n.key) el.dataset.key = n.key;
+		el.innerHTML =
+			'<button type="button" class="notif-main">' +
+				'<span class="notif-media">' + (n.media || "") + "</span>" +
+				'<span class="notif-text">' +
+					(n.eyebrow ? '<span class="notif-eyebrow">' + U.esc(n.eyebrow) + "</span>" : "") +
+					'<b class="notif-title">' + U.esc(n.title) + "</b>" +
+					'<span class="notif-sub">' + U.esc(n.text) + "</span>" +
+				"</span>" +
+			"</button>" +
+			(n.safety ? '<p class="notif-safety">' + I("shield") + "Stay on the trail and keep your distance.</p>" : "") +
+			'<button type="button" class="notif-close" aria-label="Dismiss">' + I("close") + "</button>" +
+			'<span class="notif-timer" style="--ms:' + ms + 'ms"></span>';
+		placeStack();
+		stack.prepend(el);
+		vibrate(18);
+
+		const timer = setTimeout(() => removeNotif(el), ms);
+		const hold = () => { clearTimeout(timer); el.classList.add("is-held"); };
+		["pointerdown", "pointerenter", "focusin"].forEach(ev => el.addEventListener(ev, hold, { once: true }));
+		el.querySelector(".notif-main").addEventListener("click", () => {
+			if (el.dataset.dragged) { delete el.dataset.dragged; return; }      // that was a swipe, not a tap
+			removeNotif(el);
+			if (n.onOpen) n.onOpen();
+		});
+		el.querySelector(".notif-close").addEventListener("click", () => removeNotif(el));
+		enableSwipeAway(el);
+		return el.dataset.id;
+	}
+
+	function removeNotif(el, instant) {
+		if (!el || !el.parentNode || el.classList.contains("is-leaving")) return;
+		if (instant || reducedMotion()) { el.remove(); return; }
+		el.style.maxHeight = el.offsetHeight + "px";      // so the collapse can animate
+		void el.offsetWidth;
+		el.classList.add("is-leaving");
+		setTimeout(() => el.remove(), 300);
+	}
+
+	/** Swipe a card towards the edge to dismiss it. */
+	function enableSwipeAway(el) {
+		let startX = 0, dx = 0, down = false, captured = false;
+		el.addEventListener("pointerdown", (e) => {
+			if (e.target.closest(".notif-close")) return;
+			down = true; startX = e.clientX; dx = 0; captured = false;
+		});
+		el.addEventListener("pointermove", (e) => {
+			if (!down) return;
+			dx = Math.min(0, e.clientX - startX);
+			if (dx < -8) {
+				// once it is clearly a drag, keep the pointer even if it leaves the card
+				if (!captured) { try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } captured = true; }
+				el.classList.add("is-dragging");
+				el.style.transform = "translateX(" + dx + "px)";
+				el.style.opacity = String(Math.max(0.2, 1 + dx / 260));
+			}
+		});
+		const end = () => {
+			if (!down) return;
+			down = false;
+			el.classList.remove("is-dragging");
+			if (dx < -12) el.dataset.dragged = "1";
+			if (dx < -80) { removeNotif(el); return; }
+			el.style.transform = "";
+			el.style.opacity = "";
+		};
+		el.addEventListener("pointerup", end);
+		el.addEventListener("pointercancel", end);
+	}
+
+	/** "3 new birds", "1 new frog", "5 new species". */
+	function speciesNoun(keys, count) {
+		const groups = new Set(keys.map(k => (WN_DATA.getSpecies(k) || {}).group).filter(Boolean));
+		if (groups.size !== 1) return "species";
+		const g = Array.from(groups)[0];
+		return count === 1 ? WN_CONFIG.GROUP_LABELS[g].toLowerCase() : WN_CONFIG.GROUP_PLURALS[g].toLowerCase();
+	}
+
+	/**
+	 * Alert card for walking into a zone.
+	 * @param {Object} alert { newKeys (just collected, in the chosen groups), relevant (species in the chosen groups) }
+	 */
+	function notifyZone(zone, alert, onOpen) {
+		const n = alert.newKeys.length;
+		const keys = n ? alert.newKeys : alert.relevant;
+		const text = n
+			? n + " new " + speciesNoun(alert.newKeys, n) + " collected. Tap to see."
+			: alert.relevant.length + " " + speciesNoun(alert.relevant, alert.relevant.length) + " recorded here. Tap to see.";
+		const thumbs = keys.slice(0, 3).map(k => {
+			const sp = WN_DATA.getSpecies(k);
+			const src = WN_DATA.imageFor(k, "thumb");
+			return '<span class="notif-thumb t-' + sp.group + '">' + (src
+				? '<img src="' + U.esc(src) + '" alt="" data-fallback="' + U.esc(fallbackFor(k, src)) + '" data-group="' + sp.group + '">'
+				: groupIcon(sp)) + "</span>";
+		}).join("");
+		return notify({
+			key: "zone-" + zone.id, kind: "zone",
+			eyebrow: n ? "New in this zone" : "You entered a zone",
+			title: zone.name, text,
+			media: '<span class="notif-thumbs">' + thumbs + "</span>",
+			safety: true,
+			onOpen: () => { onOpen(); if (n) confetti(Array.from(new Set(keys.map(k => WN_CONFIG.TYPE_COLORS[WN_DATA.getSpecies(k).group]))).concat([WN_CONFIG.PALETTE.wattle]), 26); }
 		});
 	}
-	function dismissBanner() {
-		banner.hidden = true;
-		if (bannerResolve) { const r = bannerResolve; bannerResolve = null; r(); }
+
+	/** Alert card for badges or a level earned by walking (no pop-up). */
+	function notifyProgress(p) {
+		if (WN_STORE.settings().alertsOn === false) return;
+		const badges = p.badges || [];
+		if (!badges.length && !p.levelUp) return;
+		const XP = WN_CONFIG.XP.badge;
+		const levelText = p.levelUp ? " \u00b7 Level " + p.levelUp.level : "";
+		const openBadges = (id) => {
+			showTab("badges");
+			if (id && typeof WN_BADGES !== "undefined") setTimeout(() => WN_BADGES.showBadge(id), 380);
+		};
+		if (badges.length === 1) {
+			const b = badges[0];
+			notify({ kind: "badge", eyebrow: "Badge earned", title: b.name, text: "+" + XP[b.rarity] + " XP" + levelText + ". Tap to see.",
+				media: medal(b, { earned: true }), onOpen: () => openBadges(b.id), ms: 9000 });
+		} else if (badges.length > 1) {
+			notify({ kind: "badge", eyebrow: badges.length + " badges earned", title: badges.slice(0, 2).map(b => b.name).join(" and ") + (badges.length > 2 ? " +" + (badges.length - 2) : ""),
+				text: "+" + badges.reduce((t, b) => t + XP[b.rarity], 0) + " XP" + levelText + ". Tap to see.",
+				media: medal(badges[0], { earned: true }), onOpen: () => openBadges(null), ms: 9000 });
+		} else {
+			notify({ kind: "badge", eyebrow: "Level up", title: "Level " + p.levelUp.level + ": " + p.levelUp.rank, text: "Tap to see your ranger card.",
+				media: '<span class="medal gold"><b class="medal-num">' + p.levelUp.level + "</b></span>", onOpen: () => openBadges(null), ms: 9000 });
+		}
 	}
-	$("#safety-ok").addEventListener("click", dismissBanner);
 
 	/* ---- celebrations --------------------------------------------------------------------------- */
 
@@ -519,8 +677,8 @@ const WN_UI = (function () {
 	}
 
 	/**
-	 * Queue a species celebration. `items` is an array of { key, tier, photo? }.
-	 * One entry: card flip with the species image. Many: "zone visited" summary.
+	 * Queue a species celebration for something the user just logged.
+	 * `items` is [{ key, tier, photo? }] (one species).
 	 */
 	function celebrate(items, title) {
 		if (!items || !items.length) return;
@@ -534,50 +692,29 @@ const WN_UI = (function () {
 		if (!busy) next();
 	}
 
+	/** Celebration for a species the user just logged (one card, photo, chips). */
 	function speciesHtml(c) {
 		const P = WN_CONFIG.PALETTE;
-		if (c.items.length === 1) {
-			const it = c.items[0];
-			const sp = WN_DATA.getSpecies(it.key);
-			const rarity = WN_DATA.rarityInfo(sp.rarity);
-			const imgSrc = it.photo || WN_DATA.imageFor(sp.key, "thumb");
-			const rare = rarity.id === "rare" || rarity.id === "veryrare";
-			const kicker = c.title || (rare ? "Rare find" : "New entry unlocked");
-			return {
-				ms: WN_CONFIG.CELEBRATE_MS,
-				colors: [WN_CONFIG.TYPE_COLORS[sp.group], P.wattle, P.amber, P.cream],
-				vibe: rare ? [30, 40, 30] : 25,
-				html: '<div class="rays"></div>' +
-					'<div class="celebrate-kicker">' + U.esc(kicker) + (rare && c.title ? " · " + rarity.label : "") + "</div>" +
-					(imgSrc ? '<img class="celebrate-img" src="' + U.esc(imgSrc) + '" alt="" data-fallback="' + U.esc(it.photo ? "" : fallbackFor(sp.key, imgSrc)) + '" data-group="' + sp.group + '">' : '<div class="celebrate-img group-icon t-' + sp.group + '">' + I(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</div>") +
-					"<h2>" + U.esc(sp.displayName) + "</h2>" +
-					'<p class="entry-sci">' + U.esc(sp.sci) + "</p>" +
-					'<div class="entry-chips">' + typeChip(sp) + tierBadge(it.tier) + statusBadge(sp) + "</div>" +
-					'<div class="celebrate-actions">' +
-						'<button type="button" class="btn btn-primary btn-sm" data-act="photo" data-key="' + sp.key + '">' + I("camera") + "Add your photo</button>" +
-						'<button type="button" class="btn btn-ghost btn-sm" data-act="close">Nice</button>' +
-					"</div>"
-			};
-		}
-		const shown = c.items.slice(0, 5);
-		const colors = Array.from(new Set(c.items.map(it => WN_CONFIG.TYPE_COLORS[(WN_DATA.getSpecies(it.key) || {}).group]).filter(Boolean))).concat([P.wattle, P.cream]);
+		const it = c.items[0];
+		const sp = WN_DATA.getSpecies(it.key);
+		const rarity = WN_DATA.rarityInfo(sp.rarity);
+		const imgSrc = it.photo || WN_DATA.imageFor(sp.key, "thumb");
+		const rare = rarity.id === "rare" || rarity.id === "veryrare";
+		const kicker = c.title || (rare ? "Rare find" : "New entry unlocked");
 		return {
 			ms: WN_CONFIG.CELEBRATE_MS,
-			colors,
-			vibe: [20, 30, 20],
+			colors: [WN_CONFIG.TYPE_COLORS[sp.group], P.wattle, P.amber, P.cream],
+			vibe: rare ? [30, 40, 30] : 25,
 			html: '<div class="rays"></div>' +
-				'<div class="celebrate-kicker">' + U.esc(c.title || "Zone visited") + "</div>" +
-				'<div class="celebrate-stack">' + shown.map(it => {
-					const sp = WN_DATA.getSpecies(it.key);
-					const src = WN_DATA.imageFor(it.key, "thumb");
-					return src
-						? '<img class="stack-img" src="' + U.esc(src) + '" alt="' + U.esc(sp.displayName) + '" data-fallback="' + U.esc(fallbackFor(it.key, src)) + '" data-group="' + sp.group + '">'
-						: '<span class="stack-img group-icon t-' + sp.group + '">' + I(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</span>";
-				}).join("") + (c.items.length > 5 ? '<span class="more">+' + (c.items.length - 5) + "</span>" : "") + "</div>" +
-				"<h2>" + c.items.length + " new entries</h2>" +
-				'<p class="celebrate-names">' + U.esc(c.items.map(it => WN_DATA.getSpecies(it.key).displayName).slice(0, 5).join(", ")) + (c.items.length > 5 ? " and more" : "") + "</p>" +
-				'<div class="entry-chips">' + tierBadge(c.items[0].tier) + "</div>" +
-				'<div class="celebrate-actions"><button type="button" class="btn btn-ghost btn-sm" data-act="pokedex">' + I("book") + 'See Pokedex</button><button type="button" class="btn btn-ghost btn-sm" data-act="close">Nice</button></div>'
+				'<div class="celebrate-kicker">' + U.esc(kicker) + (rare && c.title ? " \u00b7 " + rarity.label : "") + "</div>" +
+				(imgSrc ? '<img class="celebrate-img" src="' + U.esc(imgSrc) + '" alt="" data-fallback="' + U.esc(it.photo ? "" : fallbackFor(sp.key, imgSrc)) + '" data-group="' + sp.group + '">' : '<div class="celebrate-img group-icon t-' + sp.group + '">' + I(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</div>") +
+				"<h2>" + U.esc(sp.displayName) + "</h2>" +
+				'<p class="entry-sci">' + U.esc(sp.sci) + "</p>" +
+				'<div class="entry-chips">' + typeChip(sp) + tierBadge(it.tier) + statusBadge(sp) + "</div>" +
+				'<div class="celebrate-actions">' +
+					'<button type="button" class="btn btn-primary btn-sm" data-act="photo" data-key="' + sp.key + '">' + I("camera") + "Add your photo</button>" +
+					'<button type="button" class="btn btn-ghost btn-sm" data-act="close">Nice</button>' +
+				"</div>"
 		};
 	}
 
@@ -655,7 +792,6 @@ const WN_UI = (function () {
 		const act = btn.dataset.act;
 		if (act === "close") { closeCelebration(); return; }
 		if (act === "badges") { closeCelebration(); showTab("badges"); return; }
-		if (act === "pokedex") { closeCelebration(); showTab("pokedex"); return; }
 		if (act === "photo") {
 			const key = btn.dataset.key;
 			try {
@@ -685,7 +821,8 @@ const WN_UI = (function () {
 		statusBadge, tierBadge, typeChip, rarityPips, pad, speciesImg, groupIcon, medal, avatar,
 		openSheet, closeSheet, onSheetClose,
 		showZone, refreshZoneSheet, hideZone, currentZone, showSettings, hideSettings,
-		showEntry, hideEntry, setEntryActions, safetyBanner,
+		showEntry, hideEntry, setEntryActions,
+		notify, notifyZone, notifyProgress,
 		celebrate, celebrateProgress, confetti
 	};
 })();

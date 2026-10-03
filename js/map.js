@@ -1,10 +1,13 @@
 /* ==========================================================================
    Wild Neighbours - Leaflet map
    --------------------------------------------------------------------------
-   Draws the search circle and the habitat zones. Zones are circles sized by
-   the spread of their records; nothing is ever drawn at a record's exact
-   coordinates. Zone colours: leaf green, coral ring when a threatened
-   species is recorded there, wattle gold once you have visited.
+   Draws the search circle and the habitat zones. Each zone is drawn as a
+   cell: its circle, split from overlapping neighbours along the halfway line
+   with a small gap (see WN_ZONES.zoneShapes), so zones never blur together.
+   Neighbouring cells get different shades of green; visited zones turn gold;
+   a coral edge marks zones with a threatened species. A chip on each zone
+   shows how many species live there and dots for the animal types (names
+   appear when zoomed in). Nothing is ever drawn at a record's exact point.
    Also draws the "you are here" marker and a ripple when you enter a zone.
    ========================================================================== */
 
@@ -13,8 +16,10 @@ const WN_MAP = (function () {
 
 	const U = WN_UTIL;
 	const P = WN_CONFIG.PALETTE;
-	let map, zoneLayer, centreMarker, radiusCircle, youMarker, accuracyCircle;
-	let zoneShapes = new Map();   // zone id -> L.Circle
+	let map, zoneLayer, chipLayer, centreMarker, radiusCircle, youMarker, accuracyCircle;
+	let cells = new Map();        // zone id -> { poly, zone, centre, shade }
+	let chips = [];               // { zone, marker }
+	let activeId = null;          // the zone the walker is standing in
 	const handlers = { zoneTap: null, mapTap: null, moved: null };
 	let tileErrorShown = false;
 
@@ -75,8 +80,9 @@ const WN_MAP = (function () {
 		map = L.map("map", { zoomControl: false, attributionControl: false, tap: true }).setView([centre.lat, centre.lng], 14);
 		addTiles(0);
 		zoneLayer = L.layerGroup().addTo(map);
+		chipLayer = L.layerGroup().addTo(map);
 		map.on("click", (e) => { if (handlers.mapTap) handlers.mapTap(e.latlng.lat, e.latlng.lng); });
-		map.on("zoomend", updateLabels);
+		map.on("zoomend", updateChips);
 		map.on("moveend", () => { if (handlers.moved) { const c = map.getCenter(); handlers.moved(c.lat, c.lng); } });
 		return map;
 	}
@@ -104,50 +110,117 @@ const WN_MAP = (function () {
 			: { paddingTopLeft: [420, 70], paddingBottomRight: [70, 110] });
 	}
 
-	/** Replace all zone shapes. `animate` pops them in (new area, not every refresh). */
+	/* ---- zones ------------------------------------------------------------ */
+
+	function isVisited(id) { return WN_STORE.stats().zonesVisited.includes(id); }
+
+	/** Leaflet style for a zone cell. */
+	function cellStyle(cell) {
+		const shade = WN_CONFIG.ZONE_SHADES[cell.shade] || WN_CONFIG.ZONE_SHADES[0];
+		const visited = isVisited(cell.zone.id), active = cell.zone.id === activeId;
+		return {
+			color: active ? P.amber : cell.zone.threatened ? P.coral : visited ? "#b48a12" : shade.line,
+			weight: active ? 4 : cell.zone.threatened ? 2.5 : 2,
+			opacity: cell.zone.threatened && !active ? 0.85 : 0.95,
+			fillColor: visited ? P.wattle : shade.fill,
+			fillOpacity: active ? 0.55 : visited ? 0.46 : 0.4,
+			lineJoin: "round"
+		};
+	}
+
+	/** The chip on a zone: species count, dots for the animal types, name below. */
+	function chipHtml(zone) {
+		const dots = WN_CONFIG.GROUP_ORDER.filter(g => zone.groups && zone.groups[g])
+			.map(g => '<i style="background:' + WN_CONFIG.TYPE_COLORS[g] + '" title="' + WN_CONFIG.GROUP_PLURALS[g] + '"></i>').join("");
+		const visited = isVisited(zone.id);
+		return '<div class="zone-chip' + (visited ? " is-visited" : "") + (zone.threatened ? " is-threat" : "") + (zone.id === activeId ? " is-active" : "") + '">' +
+			'<span class="zc-pill">' + (visited ? WN_ICONS.svg("check", "zc-check") : "") +
+				"<b>" + zone.speciesCount + '</b><span class="zc-dots">' + dots + "</span></span>" +
+			'<span class="zc-name">' + U.esc(zone.name) + "</span></div>";
+	}
+
+	/** Replace all zones. `animate` pops them in (a new area, not every refresh). */
 	function renderZones(zones, animate) {
 		zoneLayer.clearLayers();
-		zoneShapes = new Map();
-		const visited = new Set(WN_STORE.stats().zonesVisited);
-		zones.forEach(zone => {
-			const been = visited.has(zone.id);
-			const fill = been ? P.wattle : P.leaf;
-			const shape = L.circle([zone.lat, zone.lng], {
-				radius: zone.radius,
-				color: zone.threatened ? P.coral : fill,
-				weight: zone.threatened ? 4 : 3,
-				opacity: 0.95,
-				fillColor: fill,
-				fillOpacity: been ? 0.42 : 0.34,
-				className: animate && !WN_UI.reducedMotion() ? "zone-anim" : ""
+		chipLayer.clearLayers();
+		cells = new Map();
+		chips = [];
+		const shapes = WN_ZONES.zoneShapes(zones, { gutter: WN_CONFIG.ZONE_GUTTER_M });
+		const shades = WN_ZONES.shadeZones(shapes, WN_CONFIG.ZONE_SHADES.length);
+		const pop = animate && !WN_UI.reducedMotion();
+		zones.forEach((zone, i) => {
+			const shape = shapes[i];
+			if (!shape.latlngs.length) return;
+			const cell = { zone, centre: shape.centre, shade: shades[i] };
+			cell.poly = L.polygon(shape.latlngs, Object.assign(cellStyle(cell), { className: pop ? "zone-anim" : "" }));
+			cell.poly.on("click", (e) => { L.DomEvent.stopPropagation(e); if (handlers.zoneTap) handlers.zoneTap(zone, e.latlng); });
+			cell.poly.addTo(zoneLayer);
+			cells.set(zone.id, cell);
+
+			const marker = L.marker([shape.centre.lat, shape.centre.lng], {
+				icon: L.divIcon({ className: "zone-chip-anchor", html: chipHtml(zone), iconSize: [0, 0], iconAnchor: [0, 0] }),
+				keyboard: false, zIndexOffset: zone.speciesCount
 			});
-			shape.bindTooltip((been ? WN_ICONS.svg("check", "icon-xs") : "") + U.esc(zone.name), { permanent: true, direction: "center", className: "zone-label", opacity: 1 });
-			shape.on("click", (e) => { L.DomEvent.stopPropagation(e); if (handlers.zoneTap) handlers.zoneTap(zone, e.latlng); });
-			shape.addTo(zoneLayer);
-			zoneShapes.set(zone.id, shape);
+			marker.on("click", (e) => {
+				L.DomEvent.stopPropagation(e);
+				if (handlers.zoneTap) handlers.zoneTap(zone, L.latLng(shape.centre.lat, shape.centre.lng));
+			});
+			marker.addTo(chipLayer);
+			chips.push({ zone, marker });
 		});
-		updateLabels();
+		if (activeId && cells.has(activeId)) cells.get(activeId).poly.bringToFront();
+		requestAnimationFrame(updateChips);
 	}
 
-	/** Labels only at close zoom so the map does not turn into a word cloud. */
-	function updateLabels() {
+	/**
+	 * Names show from zoom 15; chips hide below zoom 13. Chips that would
+	 * overlap are hidden, keeping the zone you are in and the busiest zones.
+	 */
+	function updateChips() {
 		if (!map) return;
-		const show = map.getZoom() >= 15;
-		zoneShapes.forEach(shape => {
-			const el = shape.getTooltip() && shape.getTooltip().getElement();
-			if (el) el.style.display = show ? "" : "none";
+		const zoom = map.getZoom(), el = map.getContainer();
+		if (!el.offsetWidth) return;      // map tab hidden: measure again when it is shown
+		el.classList.toggle("show-zone-names", zoom >= 15);
+		el.classList.toggle("hide-zone-chips", zoom < 13);
+		if (zoom < 13) return;
+		const items = chips
+			.map(c => ({ zone: c.zone, el: c.marker.getElement() && c.marker.getElement().firstElementChild }))
+			.filter(x => x.el)
+			.sort((a, b) => ((b.zone.id === activeId) - (a.zone.id === activeId)) || (b.zone.speciesCount - a.zone.speciesCount));
+		const placed = [];
+		items.forEach(({ el }) => {
+			el.classList.remove("is-hidden");
+			const r = el.getBoundingClientRect();
+			const hit = placed.some(q => r.left < q.right + 4 && r.right > q.left - 4 && r.top < q.bottom + 2 && r.bottom > q.top - 2);
+			if (hit) el.classList.add("is-hidden"); else placed.push(r);
 		});
 	}
 
-	/** Brighten a zone and send a ripple out from its centre. */
+	/** Highlight the zone the walker is in (null for none). */
+	function setActiveZone(id) {
+		if (activeId === id) return;
+		const prev = activeId;
+		activeId = id;
+		[prev, id].forEach(zid => {
+			const cell = zid && cells.get(zid);
+			if (cell) cell.poly.setStyle(cellStyle(cell));
+		});
+		if (id && cells.has(id)) cells.get(id).poly.bringToFront();
+		chips.forEach(c => {
+			const chip = c.marker.getElement() && c.marker.getElement().firstElementChild;
+			if (chip) chip.classList.toggle("is-active", c.zone.id === id);
+		});
+		updateChips();
+	}
+
+	/** Brighten a zone and send a ripple out from its middle. */
 	function pulseZone(zoneId) {
-		const shape = zoneShapes.get(zoneId);
-		if (!shape) return;
-		shape.setStyle({ weight: 5, fillOpacity: 0.55 });
-		setTimeout(() => shape.setStyle({ weight: 3, fillOpacity: 0.42 }), 1400);
+		const cell = cells.get(zoneId);
+		if (!cell) return;
+		cell.poly.setStyle({ weight: 5, fillOpacity: 0.62 });
+		setTimeout(() => { const now = cells.get(zoneId); if (now) now.poly.setStyle(cellStyle(now)); }, 1400);
 		if (WN_UI.reducedMotion()) return;
-		const c = shape.getLatLng();
-		const ripple = L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="zone-ripple"></div>', iconSize: [40, 40], iconAnchor: [20, 20] }), interactive: false, keyboard: false }).addTo(map);
+		const ripple = L.marker([cell.centre.lat, cell.centre.lng], { icon: L.divIcon({ className: "", html: '<div class="zone-ripple"></div>', iconSize: [40, 40], iconAnchor: [20, 20] }), interactive: false, keyboard: false }).addTo(map);
 		setTimeout(() => map.removeLayer(ripple), 1400);
 	}
 
@@ -172,7 +245,7 @@ const WN_MAP = (function () {
 	function zoomIn() { map.zoomIn(); }
 	function zoomOut() { map.zoomOut(); }
 	function center() { const c = map.getCenter(); return { lat: c.lat, lng: c.lng }; }
-	function invalidate() { if (map) setTimeout(() => map.invalidateSize(), 60); }
+	function invalidate() { if (map) setTimeout(() => { map.invalidateSize(); updateChips(); }, 60); }
 
-	return { init, on, setCentre, fitCircle, renderZones, pulseZone, setYou, clearYou, panTo, zoomTo, zoomIn, zoomOut, center, invalidate };
+	return { init, on, setCentre, fitCircle, renderZones, setActiveZone, pulseZone, setYou, clearYou, panTo, zoomTo, zoomIn, zoomOut, center, invalidate };
 })();

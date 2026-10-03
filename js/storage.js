@@ -47,7 +47,9 @@ const WN_STORE = (function () {
 				radius: WN_CONFIG.RADIUS_DEFAULT,
 				window: WN_CONFIG.WINDOW_DEFAULT_MONTHS,
 				simulate: false,
-				cardCompact: false
+				cardCompact: null,          // null = decide by screen height
+				alertsOn: true,                                       // alert cards while walking
+				alertGroups: ["mammal", "bird", "reptile", "frog"]    // animal groups that trigger zone alerts
 			},
 			profile: {
 				id: randomId(),

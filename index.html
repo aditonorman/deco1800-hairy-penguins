@@ -89,7 +89,7 @@
 							<span class="statbar-text"><span class="statbar-num"><b id="stat-distance">0 m</b></span><span class="statbar-label">walked</span></span>
 						</div>
 					</div>
-					<p class="hud-pill is-out" id="hud-zone" role="status">Looking for you&hellip;</p>
+					<button type="button" class="hud-pill is-out" id="hud-zone" aria-live="polite" disabled>Looking for you&hellip;</button>
 					<button type="button" class="search-here" id="btn-search-here" hidden><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5A8 8 0 1 0 17.6 17"/><path d="M20.5 4.5V11h-6.5"/></svg>Search this area</button>
 				</div>
 
@@ -144,8 +144,9 @@
 						</div>
 						<div class="legend" aria-label="Map key">
 							<span><i class="legend-dot zone"></i>Habitat zone</span>
-							<span><i class="legend-dot threat"></i>Threatened species</span>
 							<span><i class="legend-dot visited"></i>Visited</span>
+							<span><i class="legend-dot threat"></i>Threatened species</span>
+							<span><i class="legend-dot types"></i>Animal types recorded</span>
 							<span><i class="legend-dot you"></i>You</span>
 						</div>
 						<p class="hint-text">Drag the map and tap "Search this area" to explore anywhere in Brisbane.</p>
@@ -239,6 +240,19 @@
 				<button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
 			</div>
 			<div class="sheet-body">
+				<section class="settings-group" id="alerts-group">
+					<h3>Alerts while walking</h3>
+					<label class="switch">
+						<input type="checkbox" id="alerts-toggle" checked>
+						<span class="switch-track" aria-hidden="true"></span>
+						<span>Show alert cards</span>
+					</label>
+					<p class="hint-text">When you enter a zone or earn a badge, a small card slides in at the side. Nothing opens until you tap it. Species are collected either way.</p>
+					<p class="field-label" id="alert-groups-label">Zone alerts for</p>
+					<div class="type-toggles" id="alert-groups" role="group" aria-labelledby="alert-groups-label"></div>
+					<p class="hint-text" id="alert-groups-hint"></p>
+				</section>
+
 				<section class="settings-group">
 					<h3>Wildlife data</h3>
 					<div class="seg seg-wide" role="group" aria-label="Data source">
@@ -398,15 +412,9 @@
 			</div>
 		</div>
 
-		<!-- Safety prompt when entering a zone -->
-		<div class="banner" id="safety-banner" role="alert" hidden>
-			<span class="banner-ico"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5s7.5-3.3 7.5-9.8V5.2L12 2.5 4.5 5.2v6.5c0 6.5 7.5 9.8 7.5 9.8z"/><path d="M8.6 11.8l2.3 2.3 4.5-4.6"/></svg></span>
-			<div>
-				<strong id="safety-title">You have entered a habitat zone</strong>
-				<p>Stay on the trail, keep your distance, and never bait or call animals.</p>
-			</div>
-			<button type="button" class="btn btn-sm" id="safety-ok">Got it</button>
-		</div>
+		<!-- Alert cards: slide in on zone entry (and for badges earned while walking).
+		     Nothing opens until one is tapped. Filled by WN_UI.notify(). -->
+		<div class="notif-stack" id="notif-stack" aria-live="polite" aria-label="Alerts"></div>
 
 		<div id="toast" class="toast" role="status" hidden></div>
 

@@ -1,9 +1,12 @@
 /* ==========================================================================
    Wild Neighbours - walking (always on)
    --------------------------------------------------------------------------
-   Tracks where the walker is and fires the zone-entry flow:
-     safety banner -> unlock every species in the zone at "zone visit" tier
-     -> zone summary with "I spotted it" / "Saw signs" buttons.
+   Tracks where the walker is. Entering a zone quietly collects every
+   species recorded there (at "zone visit" tier) and slides in a small alert
+   card with a safety reminder. Nothing opens until the walker taps the card
+   (or the status pill), which shows the zone with "I spotted it" and
+   "Saw signs" buttons. Settings decide whether alerts show and for which
+   animal groups; collecting happens either way.
 
    Position comes from the phone's GPS (started when the user taps the
    find-me button, or automatically if permission was granted before) or,
@@ -29,6 +32,11 @@ const WN_WALK = (function () {
 	};
 
 	const hud = $("#hud-zone");
+	// The status pill doubles as the way back into the zone you are standing in.
+	hud.addEventListener("click", () => {
+		const zone = state.zones.find(z => z.id === state.currentZoneId);
+		if (zone) openZone(zone);
+	});
 
 	/* ---- wiring --------------------------------------------------------- */
 
@@ -95,7 +103,8 @@ const WN_WALK = (function () {
 		WN_MAP.setYou(c.lat, c.lng, 0);
 		const zone = WN_ZONES.zoneAt(state.zones, c.lat, c.lng);
 		state.currentZoneId = zone ? zone.id : null;
-		if (zone) setHud("Demo: in " + zone.name + " \u00b7 " + zone.speciesCount + " species", "in");
+		WN_MAP.setActiveZone(state.currentZoneId);
+		if (zone) setHud("In " + zone.name + " \u00b7 " + zone.speciesCount + " species", "in");
 		else setHud("Demo: you are at " + (c.place || "the search centre"), "out");
 	}
 
@@ -128,9 +137,16 @@ const WN_WALK = (function () {
 		if (!pool.length) { WN_UI.toast("You have visited every zone here."); return; }
 		let best = pool[0], bestD = Infinity;
 		pool.forEach(z => { const d = U.haversine(from.lat, from.lng, z.lat, z.lng); if (d < bestD) { bestD = d; best = z; } });
+		// step in a little way from the side you came from, so your dot does not hide the zone's chip
+		const back = U.haversine(best.lat, best.lng, from.lat, from.lng) > 1
+			? { n: from.lat - best.lat, e: (from.lng - best.lng) * Math.cos(best.lat * Math.PI / 180) } : { n: -1, e: 0 };
+		const len = Math.hypot(back.n, back.e) || 1;
+		let target = U.offset(best.lat, best.lng, back.n / len * 55, back.e / len * 55);
+		const landed = WN_ZONES.zoneAt(state.zones, target.lat, target.lng);
+		if (!landed || landed.id !== best.id) target = { lat: best.lat, lng: best.lng };
 		state.follow = true;
-		WN_MAP.zoomTo(best.lat, best.lng, 16);
-		updatePosition(best.lat, best.lng, null, "sim", false);
+		WN_MAP.zoomTo(target.lat, target.lng, 16);
+		updatePosition(target.lat, target.lng, null, "sim", false);
 	}
 
 	/* ---- real GPS ---------------------------------------------------------- */
@@ -218,7 +234,7 @@ const WN_WALK = (function () {
 			const d = U.haversine(state.pos.lat, state.pos.lng, lat, lng);
 			if (from !== "gps" || d <= WN_CONFIG.GPS_MAX_JUMP_M) {
 				WN_STORE.addDistance(d);
-				WN_PROGRESS.schedule();
+				WN_PROGRESS.schedule({ quiet: true });   // badges earned by walking come as alert cards
 			}
 			WN_UI.renderStats();
 		}
@@ -236,16 +252,22 @@ const WN_WALK = (function () {
 		const zone = WN_ZONES.zoneAt(state.zones, state.pos.lat, state.pos.lng);
 		if (!zone) {
 			if (state.currentZoneId) {
+				const left = state.zones.find(z => z.id === state.currentZoneId);
 				state.currentZoneId = null;
-				WN_UI.hideZone();
+				WN_MAP.setActiveZone(null);
 				WN_UI.setEntryActions(null);
+				// an open sheet for the zone just left stays open, without the report buttons
+				const open = WN_UI.currentZone();
+				if (open && left && open.id === left.id) WN_UI.showZone(left, outsideActions());
 			}
 			setHud(nearestZoneText(), "out");
 			return;
 		}
+		// still in the same zone: keep the pill in sync (it may say "Finding you" or "GPS is rough")
+		setHud("In " + zone.name + " \u00b7 " + zone.speciesCount + " species", "in");
 		if (zone.id === state.currentZoneId) return;
 		state.currentZoneId = zone.id;
-		setHud("In " + zone.name + " · " + zone.speciesCount + " species", "in");
+		WN_MAP.setActiveZone(zone.id);
 		if (!silent) enterZone(zone);
 	}
 
@@ -258,29 +280,60 @@ const WN_WALK = (function () {
 		return best.name + " is " + U.formatDistance(Math.max(0, bestD)) + " away";
 	}
 
-	async function enterZone(zone) {
+	/**
+	 * Walked into a zone: collect quietly, then maybe slide in an alert card.
+	 * No pop-up and no sheet opens by itself; the walker taps the card or the
+	 * status pill when they want to look.
+	 */
+	function enterZone(zone) {
 		WN_MAP.pulseZone(zone.id);
-		const firstVisit = WN_STORE.visitZone(zone, state.centre ? state.centre.place : null);
-		WN_UI.renderStats();
-		await WN_UI.safetyBanner(zone.name);
-		if (state.currentZoneId !== zone.id) return;
+		const place = state.centre ? state.centre.place : null;
+		const firstVisit = WN_STORE.visitZone(zone, place);
 
-		// Zone visit unlocks every species recorded in this zone (tier 1).
+		// Collecting: every species recorded here joins the Pokedex at zone-visit tier.
 		const unlocked = [];
 		zone.species.forEach(s => {
-			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place: state.centre ? state.centre.place : null });
-			if (r.changed) unlocked.push({ key: s.key, tier: 1 });
+			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place });
+			if (r.changed) unlocked.push(s.key);
 		});
 		WN_UI.setEntryActions({ canReport: true, onReport: report, zone });
-		WN_UI.showZone(zone, { canReport: true, onReport: report });
-		if (unlocked.length) {
-			WN_UI.renderStats();
-			// species celebration first; badge celebrations queue up behind it
-			WN_UI.celebrate(unlocked, (firstVisit ? "Zone visited: " : "Back in ") + zone.name);
-		} else if (firstVisit) {
-			WN_UI.toast("Zone visited. Everything here was already in your Pokedex.");
-		}
-		document.dispatchEvent(new CustomEvent("wn:collection"));
+		WN_UI.renderStats();
+
+		// A sheet already open for this zone switches to "inside" mode.
+		const open = WN_UI.currentZone();
+		if (open && open.id === zone.id) WN_UI.showZone(zone, insideActions(zone));
+
+		const alert = alertFor(zone, unlocked, firstVisit);
+		if (alert) WN_UI.notifyZone(zone, alert, () => openZone(zone, alert.newKeys));
+		document.dispatchEvent(new CustomEvent("wn:collection", { detail: { quiet: true } }));
+	}
+
+	/**
+	 * Should this zone raise an alert? Only if alerts are on and the zone has
+	 * animals from the groups the walker chose, and only when there is
+	 * something new to collect or it is the first visit.
+	 * @returns null, or { newKeys, relevant, groups }
+	 */
+	function alertFor(zone, unlockedKeys, firstVisit) {
+		const S = WN_STORE.settings();
+		if (S.alertsOn === false) return null;
+		const groups = new Set(S.alertGroups || WN_CONFIG.GROUP_ORDER);
+		const groupOf = (key) => (WN_DATA.getSpecies(key) || {}).group;
+		const relevant = zone.species.filter(s => groups.has(groupOf(s.key))).map(s => s.key);
+		if (!relevant.length) return null;
+		const newKeys = unlockedKeys.filter(k => groups.has(groupOf(k)));
+		if (!newKeys.length && !firstVisit) return null;
+		return { newKeys, relevant, groups: Array.from(groups) };
+	}
+
+	function insideActions(zone) { return { canReport: true, onReport: report, inside: true, zone }; }
+	function outsideActions() { return { canReport: false, onReport: report, hint: "Walk into this zone to log a sighting or signs." }; }
+
+	/** Show a zone's sheet: report buttons if you are in it, newest finds first. */
+	function openZone(zone, newKeys) {
+		WN_UI.showTab("map");
+		const here = state.currentZoneId === zone.id;
+		WN_UI.showZone(zone, Object.assign(here ? insideActions(zone) : outsideActions(), { newKeys: newKeys || [] }));
 	}
 
 	/** Self-reported sighting (tier 3) or signs (tier 2). */
@@ -306,7 +359,9 @@ const WN_WALK = (function () {
 		hud.textContent = text;
 		hud.classList.toggle("is-in", mode === "in");
 		hud.classList.toggle("is-out", mode !== "in");
+		hud.disabled = mode !== "in";
+		hud.setAttribute("aria-label", mode === "in" ? text + ". Open zone" : text);
 	}
 
-	return { init, setZones, setSimulate, isSimulating, teleport, step, jumpToNearestZone, locate, report, inZone, currentZoneId, position };
+	return { init, setZones, setSimulate, isSimulating, teleport, step, jumpToNearestZone, locate, report, openZone, insideActions, outsideActions, inZone, currentZoneId, position };
 })();

@@ -18,6 +18,11 @@
                          (so one record never pinpoints an animal).
      5. finalise       - radius = clamp(1.15 x spread + 60, min, max), a stable
                          id from the member ids, a species summary and a name.
+     6. shapes         - zoneShapes() splits overlapping circles along the line
+                         halfway between their centres (with a small gutter),
+                         so neighbouring zones are drawn as separate cells.
+                         zoneAt() uses the same "nearest centre" rule, so what
+                         you see on the map is exactly what triggers a zone.
    ========================================================================== */
 
 const WN_ZONES = (function () {
@@ -144,6 +149,13 @@ const WN_ZONES = (function () {
 			return s;
 		}).sort((a, b) => b.count - a.count || (b.lastDate || "").localeCompare(a.lastDate || ""));
 
+		// how many species of each animal group were recorded here (for map chips and alert filters)
+		const groups = {};
+		species.forEach(s => {
+			const info = speciesIndex.get(s.key);
+			if (info && info.group) groups[info.group] = (groups[info.group] || 0) + 1;
+		});
+
 		const radius = Math.min(P.maxRadius, Math.max(P.minRadius, Math.round(spread * 1.15 + 60)));
 		const id = "z" + U.hash(z.records.map(r => r.id).sort().join("|") + "@" + z.lat.toFixed(4) + "," + z.lng.toFixed(4)).toString(36);
 		const lastDate = z.records.reduce((m, r) => (r.date && r.date > m) ? r.date : m, "");
@@ -158,6 +170,7 @@ const WN_ZONES = (function () {
 			species,
 			speciesCount: species.length,
 			threatened: species.some(s => s.threatened),
+			groups,
 			lastDate: lastDate || null,
 			sources,
 			jittered: Boolean(z.jittered)
@@ -190,17 +203,130 @@ const WN_ZONES = (function () {
 		return out;
 	}
 
-	/** Which zone (if any) contains a point. Nearest wins if zones overlap. */
+	/**
+	 * Which zone (if any) contains a point. Overlapping zones are split down the
+	 * middle: a point belongs to the zone with the nearest centre, as long as it
+	 * is inside that zone's circle. This is the same rule zoneShapes() draws.
+	 */
 	function zoneAt(zones, lat, lng) {
 		let best = null, bestD = Infinity;
 		for (const z of zones) {
 			const d = U.haversine(lat, lng, z.lat, z.lng);
-			if (d <= z.radius && d < bestD) { bestD = d; best = z; }
+			if (d < bestD) { bestD = d; best = z; }
 		}
-		return best;
+		return best && bestD <= best.radius ? best : null;
 	}
 
-	return { filterRecords, buildZones, zoneAt };
+	/* ---- drawing shapes ----------------------------------------------------- */
+
+	const EARTH_R = 6371000;
+
+	/** Keep the part of a convex polygon where ax*x + ay*y <= c (Sutherland-Hodgman). */
+	function clipHalfPlane(poly, ax, ay, c) {
+		const out = [];
+		for (let k = 0; k < poly.length; k++) {
+			const p = poly[k], q = poly[(k + 1) % poly.length];
+			const fp = ax * p.x + ay * p.y - c, fq = ax * q.x + ay * q.y - c;
+			if (fp <= 0) out.push(p);
+			if ((fp <= 0) !== (fq <= 0)) {
+				const t = fp / (fp - fq);
+				out.push({ x: p.x + t * (q.x - p.x), y: p.y + t * (q.y - p.y) });
+			}
+		}
+		return out;
+	}
+
+	/** Area-weighted centre of a polygon (where the zone's label goes). */
+	function centroid(poly) {
+		let a = 0, cx = 0, cy = 0;
+		for (let k = 0; k < poly.length; k++) {
+			const p = poly[k], q = poly[(k + 1) % poly.length];
+			const cross = p.x * q.y - q.x * p.y;
+			a += cross; cx += (p.x + q.x) * cross; cy += (p.y + q.y) * cross;
+		}
+		if (Math.abs(a) < 1e-9) return poly[0];
+		return { x: cx / (3 * a), y: cy / (3 * a) };
+	}
+
+	/**
+	 * The shape to draw for each zone, in the same order as `zones`.
+	 * Each zone starts as its circle, then is cut along the line halfway to
+	 * every nearby zone centre, pulled back by half a gutter so neighbours never
+	 * touch. Overlapping zones therefore become separate cells, and every point
+	 * inside a cell is in that zone by zoneAt()'s nearest-centre rule.
+	 * @returns [{ id, latlngs: [[lat, lng], ...], centre: { lat, lng }, neighbours: [index, ...] }]
+	 *          neighbours = cells that share an edge with this one (across the gutter)
+	 */
+	function zoneShapes(zones, opts) {
+		const o = Object.assign({ gutter: 14, steps: 72 }, opts || {});
+		if (!zones.length) return [];
+		// flat x/y metres around the middle of the zones (fine at suburb scale)
+		const lat0 = zones.reduce((a, z) => a + z.lat, 0) / zones.length;
+		const lng0 = zones.reduce((a, z) => a + z.lng, 0) / zones.length;
+		const ky = EARTH_R * Math.PI / 180;
+		const kx = ky * Math.cos(lat0 * Math.PI / 180);
+		const toXY = (lat, lng) => ({ x: (lng - lng0) * kx, y: (lat - lat0) * ky });
+		const toLatLng = (p) => [lat0 + p.y / ky, lng0 + p.x / kx];
+		const centres = zones.map(z => toXY(z.lat, z.lng));
+
+		const cells = zones.map((z, i) => {
+			const c = centres[i];
+			let poly = [];
+			for (let k = 0; k < o.steps; k++) {
+				const a = 2 * Math.PI * k / o.steps;
+				poly.push({ x: c.x + z.radius * Math.cos(a), y: c.y + z.radius * Math.sin(a) });
+			}
+			const cuts = [];
+			zones.forEach((other, j) => {
+				if (j === i || poly.length < 3) return;
+				const dx = centres[j].x - c.x, dy = centres[j].y - c.y, d = Math.hypot(dx, dy);
+				const reach = d / 2 - o.gutter / 2;          // distance from this centre to the cut line
+				if (d < 1 || reach >= z.radius) return;      // the cut line misses this circle
+				const ux = dx / d, uy = dy / d, line = ux * c.x + uy * c.y + reach;
+				poly = clipHalfPlane(poly, ux, uy, line);    // keep the side nearer this zone
+				cuts.push({ j, ux, uy, line });
+			});
+			// edges that survived all the cuts tell us which cells face each other
+			const edgeTo = new Set(cuts.filter(cut =>
+				poly.filter(v => Math.abs(cut.ux * v.x + cut.uy * v.y - cut.line) < 0.05).length >= 2).map(cut => cut.j));
+			return { poly, edgeTo };
+		});
+
+		return zones.map((z, i) => {
+			const { poly, edgeTo } = cells[i];
+			const neighbours = Array.from(edgeTo).filter(j => cells[j].edgeTo.has(i));
+			if (poly.length < 3) return { id: z.id, latlngs: [], centre: { lat: z.lat, lng: z.lng }, neighbours };
+			const mid = toLatLng(centroid(poly));
+			return { id: z.id, latlngs: poly.map(toLatLng), centre: { lat: mid[0], lng: mid[1] }, neighbours };
+		});
+	}
+
+	/**
+	 * Give cells that share an edge different shades so neighbours stand apart.
+	 * DSatur colouring: repeatedly colour the cell whose neighbours already use
+	 * the most different shades. Deterministic, so the map looks the same each
+	 * time. Returns a shade index per cell.
+	 */
+	function shadeZones(shapes, count) {
+		const n = shapes.length;
+		const shade = new Array(n).fill(-1);
+		for (let step = 0; step < n; step++) {
+			let pick = -1, bestSat = -1, bestDeg = -1;
+			for (let i = 0; i < n; i++) {
+				if (shade[i] >= 0) continue;
+				const sat = new Set(shapes[i].neighbours.map(j => shade[j]).filter(v => v >= 0)).size;
+				const deg = shapes[i].neighbours.length;
+				if (sat > bestSat || (sat === bestSat && deg > bestDeg)) { pick = i; bestSat = sat; bestDeg = deg; }
+			}
+			const used = shapes[pick].neighbours.map(j => shade[j]);
+			let s = 0;
+			while (used.includes(s) && s < count - 1) s++;
+			shade[pick] = s;
+		}
+		return shade;
+	}
+
+	return { filterRecords, buildZones, zoneAt, zoneShapes, shadeZones };
 })();
 
 if (typeof module !== "undefined") module.exports = WN_ZONES;
