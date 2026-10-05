@@ -392,16 +392,79 @@ const WN_UI = (function () {
 
 	const entryModal = $("#entry-modal");
 	let entryKey = null;
+	let entryRenderId = 0;
 	let entryActions = null;  // { canReport, onReport, zone }
 	function setEntryActions(a) { entryActions = a; }
+
+	function firstTwoSentences(text) {
+		if (typeof Intl !== "undefined" && Intl.Segmenter) {
+			return Array.from(new Intl.Segmenter("en", { granularity: "sentence" }).segment(text))
+				.slice(0, 2)
+				.map(sentence => sentence.segment.trim())
+				.join(" ");
+		}
+		return (text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).slice(0, 2).join(" ").trim();
+	}
+
+	async function fetchWikiDescription(sp) {
+		async function summary(title) {
+			const url = "https://en.wikipedia.org/api/rest_v1/page/summary/" +
+				encodeURIComponent(title.replace(/ /g, "_"));
+			const response = await fetch(url, {
+				cache: "no-store",
+				headers: { Accept: "application/json" }
+			});
+			if (response.status === 404) return null;
+			if (!response.ok) throw new Error("Wikipedia returned HTTP " + response.status);
+			const page = await response.json();
+			if (page.type === "disambiguation" || !page.extract) return null;
+			return page;
+		}
+
+		let page = await summary(sp.sci);
+		if (!page && sp.common) {
+			const query = new URLSearchParams({
+				action: "query",
+				list: "search",
+				srsearch: sp.common + " " + sp.sci,
+				srlimit: "5",
+				format: "json",
+				origin: "*"
+			});
+			const response = await fetch("https://en.wikipedia.org/w/api.php?" + query, {
+				cache: "no-store",
+				headers: { Accept: "application/json" }
+			});
+			if (!response.ok) throw new Error("Wikipedia search returned HTTP " + response.status);
+			const result = await response.json();
+			const genus = sp.sci.split(" ")[0].toLowerCase();
+			for (const hit of result.query?.search || []) {
+				const candidate = await summary(hit.title);
+				if (candidate && (candidate.extract.toLowerCase().includes(sp.sci.toLowerCase()) ||
+					candidate.extract.toLowerCase().includes(genus))) {
+					page = candidate;
+					break;
+				}
+			}
+		}
+
+		if (!page) return null;
+		return {
+			extract: firstTwoSentences(page.extract),
+			url: page.content_urls?.desktop?.page ||
+				"https://en.wikipedia.org/wiki/" + encodeURIComponent(page.title.replace(/ /g, "_"))
+		};
+	}
 
 	async function showEntry(key) {
 		const sp = WN_DATA.getSpecies(key);
 		if (!sp) return;
+		const renderId = ++entryRenderId;
 		entryKey = key;
 		const entry = WN_STORE.getEntry(key);
 		const locked = !entry;
 		const photo = entry && entry.hasPhoto ? await WN_PHOTOS.get(key) : null;
+		if (renderId !== entryRenderId) return;
 		const img = WN_DATA.imageInfo(key);
 		const imgSrc = WN_DATA.imageFor(key, "large");
 		const rarity = WN_DATA.rarityInfo(sp.rarity);
@@ -430,6 +493,10 @@ const WN_UI = (function () {
 			else if (entry.tier === 2) tiles.push('<div class="info-tile"><small>Signs seen</small><b>' + U.formatDate(entry.tierAt.slice(0, 10)) + "</b></div>");
 		}
 
+		const about = !locked
+		? '<section class="entry-about"><h4>About</h4><p class="wiki-status">Loading description from Wikipedia…</p></section>'
+		: "";
+
 		let yours = "";
 		if (entry) {
 			yours = '<section class="your-photo"><h4>Your photo</h4>' + (photo
@@ -446,6 +513,7 @@ const WN_UI = (function () {
 				'<p class="entry-sci">' + (locked ? "A " + (WN_CONFIG.GROUP_LABELS[sp.group] || "species").toLowerCase() + " you have not met yet" : U.esc(sp.sci)) + "</p>" +
 				(locked ? '<p class="locked-note">' + I("pin") + "<span>Walk into a habitat zone where it has been recorded to unlock it. Then log a sighting or signs to level it up.</span></p>" : "") +
 				'<div class="info-grid">' + tiles.join("") + "</div>" +
+				about +
 				yours +
 				(entry ? '<p class="privacy-note">Your sightings and photos are personal records kept on this device. They are never shared or used to verify anything.</p>' : "") +
 			"</div>";
@@ -463,9 +531,26 @@ const WN_UI = (function () {
 		$("#entry-foot").innerHTML = foot.join("");
 		entryModal.hidden = false;
 		$("#entry-close").focus({ preventScroll: true });
+		if (!locked) {
+			fetchWikiDescription(sp).then(wiki => {
+				if (renderId !== entryRenderId || entryKey !== key) return;
+				const section = $("#entry-body .entry-about");
+				if (!section) return;
+				if (!wiki || !wiki.extract) {
+					section.querySelector(".wiki-status").textContent = "No Wikipedia description was found for this animal.";
+					return;
+				}
+				section.innerHTML = '<h4>About</h4><p>' + U.esc(wiki.extract) + "</p>" +
+					'<a href="' + U.esc(wiki.url) + '" target="_blank" rel="noopener">Read more on Wikipedia (CC BY-SA)</a>';
+			}).catch(() => {
+				if (renderId !== entryRenderId || entryKey !== key) return;
+				const status = $("#entry-body .entry-about .wiki-status");
+				if (status) status.textContent = "Wikipedia description could not be loaded. Try again when you’re online.";
+			});
+		}
 	}
 
-	function hideEntry() { entryModal.hidden = true; entryKey = null; }
+	function hideEntry() { entryModal.hidden = true; entryKey = null; entryRenderId++; }
 
 	entryModal.addEventListener("click", async (e) => {
 		if (e.target === entryModal) { hideEntry(); return; }

@@ -804,6 +804,21 @@ img.fade-img.is-loaded { opacity: 1; }
 .your-photo h4 { font-size: 1rem; margin-bottom: 8px; }
 .your-photo figure { margin: 0; border-radius: 18px; overflow: hidden; position: relative; border: 2px solid var(--wattle); }
 .your-photo figure img { width: 100%; max-height: 340px; object-fit: cover; }
+.entry-about { margin-top: 16px; }
+.entry-about h4 { font-size: 1rem; margin-bottom: 6px; }
+.entry-about p {
+  color: var(--cream-80);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.entry-about a {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.entry-about a:hover { color: var(--wattle); }
 .photo-slot { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 18px; border: 1.5px dashed var(--cream-15); background: var(--cream-08); color: var(--cream-80); text-align: left; transition: border-color 0.2s, background 0.2s; }
 .photo-slot:hover { border-color: rgba(232, 169, 75, 0.6); }
 .photo-slot .slot-ico { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: var(--olive-ink); background: linear-gradient(145deg, var(--wattle), var(--amber)); flex: none; }
