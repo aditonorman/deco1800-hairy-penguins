@@ -41,7 +41,7 @@
   --spring: cubic-bezier(0.34, 1.5, 0.64, 1);
 
   --header-h: 56px;
-  --nav-h: 68px;
+  --nav-h: 72px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --nav-space: calc(var(--nav-h) + 24px + var(--safe-bottom));
@@ -473,6 +473,12 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 .zc-pill b { font-family: var(--font-head); font-weight: 800; font-size: 0.86rem; line-height: 1; }
 .zc-dots { display: inline-flex; gap: 3px; }
 .zc-dots i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1px var(--dot-ring); }
+/* animal icons: one round badge per animal group recorded in the zone */
+.zc-dots .zc-ico { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; box-shadow: none;
+  color: #fff; background: var(--type); border: 1.5px solid var(--chip-bg); margin-left: -5px; }
+.zc-dots .zc-ico:first-child { margin-left: 0; }
+.zc-dots .zc-ico .icon { width: 13px; height: 13px; }
+.zc-pill:has(.zc-ico) { padding: 3px 4px 3px 9px; gap: 5px; }
 .zc-check { width: 12px; height: 12px; color: var(--gold-ink); stroke-width: 3; }
 .zone-chip.is-visited .zc-pill { border-color: var(--gold-line); }
 .zone-chip.is-threat .zc-pill { border-color: var(--coral); }
@@ -1143,22 +1149,24 @@ img.fade-img.is-loaded { opacity: 1; }
 /* ---------- floating tab bar ------------------------------------------------------------------------------ */
 .tabbar {
   --i: 0;
-  --cell: calc((min(420px, 100vw - 24px) - 12px) / 3);    /* one tab's width, for the sliding circle */
+  --tab-icon-top: 14px;            /* icon top, measured from the top of each tab button */
   position: fixed; z-index: 1000; left: 50%; bottom: calc(12px + var(--safe-bottom)); transform: translateX(-50%);
   width: min(420px, calc(100% - 24px)); height: var(--nav-h); padding: 6px;
   display: grid; grid-template-columns: repeat(3, 1fr);
   border-radius: 26px; background: var(--tabbar-bg); backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg), var(--inset);
 }
-/* Figma: the active tab's icon sits in a forest-green circle; the circle slides between tabs */
-.tab-indicator { position: absolute; top: 8px; left: calc(6px + (var(--cell) - 40px) / 2); width: 40px; height: 40px; border-radius: 50%;
-  background: var(--primary); box-shadow: 0 6px 14px var(--primary-glow);
-  transform: translateX(calc(var(--i) * var(--cell))); transition: transform 0.45s var(--spring); }
-.tabbar button { position: relative; z-index: 1; border: 0; background: none; color: var(--fg-60); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; padding: 17px 0 0; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; transition: color 0.2s ease; }
-.tabbar button .icon { width: 22px; height: 22px; transition: transform 0.35s var(--spring), color 0.2s ease; }
+/* Figma: the active tab's icon sits in a forest-green circle. The indicator is exactly one
+   tab wide and tall (so it lines up at any width or zoom); the circle is drawn centred on the icon. */
+.tab-indicator { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 3); pointer-events: none;
+  transform: translateX(calc(var(--i) * 100%)); transition: transform 0.45s var(--spring); }
+.tab-indicator::before { content: ""; position: absolute; left: 50%; top: calc(var(--tab-icon-top) + 11px); width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+  background: var(--primary); box-shadow: 0 6px 14px var(--primary-glow); }
+.tabbar button { position: relative; z-index: 1; border: 0; background: none; color: var(--fg-60); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 13px; padding: var(--tab-icon-top) 0 0; font-size: 0.62rem; line-height: 1; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; transition: color 0.2s ease; }
+.tabbar button .icon { width: 22px; height: 22px; flex: none; transition: transform 0.35s var(--spring), color 0.2s ease; }
 .tabbar button.is-active { color: var(--tab-label-active); }
-.tabbar button.is-active .icon { color: var(--tab-icon-active); transform: scale(1.04); }
-.tab-dot { position: absolute; top: 8px; left: calc(50% + 9px); width: 9px; height: 9px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--tabbar-solid); animation: pulse-dot 1.8s ease-in-out infinite; }
+.tabbar button.is-active .icon { color: var(--tab-icon-active); }
+.tab-dot { position: absolute; top: 6px; left: calc(50% + 10px); z-index: 2; width: 9px; height: 9px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--tabbar-solid); animation: pulse-dot 1.8s ease-in-out infinite; }
 
 /* ---------- onboarding ------------------------------------------------------------------------------------- */
 .onboarding {

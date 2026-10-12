@@ -129,10 +129,10 @@ const WN_MAP = (function () {
 		};
 	}
 
-	/** The chip on a zone: species count, dots for the animal types, name below. */
+	/** The chip on a zone: species count, an icon per animal type (bird, frog...), name below. */
 	function chipHtml(zone) {
 		const dots = WN_CONFIG.GROUP_ORDER.filter(g => zone.groups && zone.groups[g])
-			.map(g => '<i style="background:' + WN_CONFIG.TYPE_COLORS[g] + '" title="' + WN_CONFIG.GROUP_PLURALS[g] + '"></i>').join("");
+			.map(g => '<i class="zc-ico" style="--type:' + WN_CONFIG.TYPE_COLORS[g] + '" title="' + WN_CONFIG.GROUP_PLURALS[g] + '">' + WN_ICONS.svg(WN_CONFIG.GROUP_ICONS[g] || g) + "</i>").join("");
 		const visited = isVisited(zone.id);
 		return '<div class="zone-chip' + (visited ? " is-visited" : "") + (zone.threatened ? " is-threat" : "") + (zone.id === activeId ? " is-active" : "") + '">' +
 			'<span class="zc-pill">' + (visited ? WN_ICONS.svg("check", "zc-check") : "") +
