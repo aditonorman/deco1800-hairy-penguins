@@ -5,6 +5,7 @@
  * GPS walking (emulated positions), quiet alert cards on zone entry, alert
  * filters by animal group, demo tools, celebrations for things the user
  * taps, Pokedex, photo attach, Badges tab, friend links, persistence,
+ * light / dark theme,
  * offline support and layout at phone, small-phone and laptop sizes.
  * Screenshots go to scripts/screenshots/.
  *
@@ -434,6 +435,24 @@ function section(name) { console.log("\n" + name); }
     const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!r; });
     check("service worker registered (offline app shell)", sw);
   }
+
+  // ---- 7b. light / dark theme ------------------------------------------------------
+  section("light / dark");
+  const theme = () => page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  await page.click("#btn-settings"); await waitShown("#settings-sheet");
+  check("appearance choice lives in settings", (await page.$$eval("#settings-sheet [data-theme-choice-btn]", els => els.length)) === 3);
+  await page.click('#settings-sheet [data-theme-choice-btn="dark"]'); await sleep(200);
+  check("Dark switches the page to the dark theme", (await theme()) === "dark");
+  await page.click('#settings-sheet [data-theme-choice-btn="light"]'); await sleep(200);
+  check("Light switches it back", (await theme()) === "light");
+  await page.click("#settings-sheet [data-close]"); await waitHidden("#settings-sheet");
+  await page.click("#btn-theme"); await sleep(200);
+  check("header button flips the theme", (await theme()) === "dark");
+  await page.goto(base, { waitUntil: "networkidle2" }); await sleep(900);
+  check("theme survives a reload", (await theme()) === "dark");
+  check("dark theme really changes the colours", await page.evaluate(() => getComputedStyle(document.body).backgroundColor !== "rgb(242, 247, 240)"));
+  await page.evaluate(() => WN_THEME.set("auto"));
+  check("Auto follows the system setting", ["light", "dark"].includes(await theme()) && (await page.evaluate(() => WN_THEME.choice())) === "auto");
 
   // ---- 8. layouts ------------------------------------------------------------------
   section("layouts");

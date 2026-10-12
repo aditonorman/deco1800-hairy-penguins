@@ -56,7 +56,7 @@ localStorage and IndexedDB. There are no accounts and no server.
 | **Entering a zone** | Every species recorded there joins your Pokedex at *zone visit* tier straight away. Instead of a pop-up, a small alert card slides in at the side ("4 new birds collected") with a safety reminder; nothing opens until you tap it. Tapping the card, or the status pill while you are in the zone, opens the zone sheet with the new species marked **New** and **I spotted it** / **Saw signs** buttons. Cards close themselves after a few seconds unless touched, and can be swiped away. You choose which animals trigger a card (see Settings). |
 | **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
 | **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 53 badges by category, and a friends leaderboard. |
-| **Settings** (gear icon) | **Alerts while walking**: turn alert cards on or off, and pick which animal types (mammals, birds, reptiles, frogs) trigger a zone card. Species are collected either way; the zone sheet links straight here. Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (walk with the on-screen arrows, tap for a 25 m step or hold to keep walking, or use the arrow keys; tapping the map never moves you), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
+| **Settings** (gear icon) | **Appearance**: Auto, Light or Dark. **Alerts while walking**: turn alert cards on or off, and pick which animal types (mammals, birds, reptiles, frogs) trigger a zone card. Species are collected either way; the zone sheet links straight here. Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (walk with the on-screen arrows, tap for a 25 m step or hold to keep walking, or use the arrow keys; tapping the map never moves you), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). The app only interrupts
 you in response to something you did: logging a sighting or signs shows a short celebration
@@ -222,6 +222,7 @@ js/walk.js              Walking: GPS or simulated position, zone entry, reports
 js/pokedex.js           Numbered species grid, group tiles, filters and sorting
 js/badges.js            Badges tab: ranger card, badges, leaderboard, compare, share
 js/app.js               Bootstrap, explore card, intro, friend links, settings, demo tools
+js/theme.js             Light / dark theme (runs in <head>, sets data-theme)
 sw.js                   Service worker: opens offline after the first visit
 manifest.webmanifest    Install to home screen (name, icons, colours)
 images/                 App icons
@@ -229,18 +230,27 @@ data/                   Cached WildNet + ALA data (generated)
 scripts/fetch-data.mjs  Data fetch and cache script
 scripts/test-zones.mjs  Command-line checks for the clustering
 scripts/test-progress.mjs  Command-line checks for XP, badges and friend cards
-scripts/smoke-test.js   End-to-end browser test, 113 checks (needs puppeteer-core, see the file)
+scripts/smoke-test.js   End-to-end browser test, 128 checks (needs puppeteer-core, see the file)
 deploy.sh               Upload to the team zone
 ```
 
 ## Design
 
-The base palette comes from the team slide deck: dark olive `#404a1c`, panel olive `#2f3813`,
-cream `#f6f2e4`, amber `#e8a94b` for actions, leaf green `#8fae4e` for zones and coral `#e0764a`
-for threatened species. A Brisbane "bush" palette adds colour Pokedex-style, one per animal type:
-kingfisher blue `#5aaee0` for birds, galah pink `#ec8fb1` for mammals, jacaranda `#a48be8` for
-reptiles and eucalyptus `#52c3a4` for frogs, with wattle gold `#f3cd52` for XP, rarity and gold
-medals. Fraunces for headings, DM Sans for UI, via Google Fonts. All icons are inline SVG.
+The app has a **light and a dark theme**. Light follows the team Figma file (DECO1800): a mint
+page `#f2f7f0`, white cards with soft shadows, forest green `#3c6854` for buttons, toggles and
+the active tab, orange `#f89e3e` for highlights, and dark ink `#1c2d23` for text. Dark uses the
+same greens at night (`#0f1813` page, `#18241e` cards). **Auto** (the default) follows the phone or
+laptop setting; Settings > Appearance picks Auto / Light / Dark, and the moon/sun button in the
+header flips it straight away. The choice is saved in `localStorage` (`wn-theme`).
+
+`js/theme.js` runs in `<head>` before the stylesheet and only sets `<html data-theme="...">`.
+Every colour lives in semantic tokens at the top of `css/style.css` (`--bg`, `--surface`, `--fg`,
+`--primary`, `--accent`, ...), with one block per theme, so new styles should use the tokens
+rather than hex values. A Brisbane "bush" palette adds colour Pokedex-style in both themes,
+one per animal type: kingfisher blue `#5aaee0` for birds, galah pink `#ec8fb1` for mammals,
+jacaranda `#a48be8` for reptiles and eucalyptus `#52c3a4` for frogs, with wattle gold `#f3cd52`
+for XP, rarity and gold medals. DM Sans is used for headings and UI, via Google Fonts. All icons
+are inline SVG.
 
 It is built like a native app: fixed header, full-bleed map, a floating glass tab bar with a
 sliding indicator, bottom sheets you can swipe down to close, safe-area padding for notched
