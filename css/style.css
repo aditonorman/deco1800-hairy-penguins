@@ -1037,6 +1037,21 @@ img.fade-img.is-loaded { opacity: 1; }
 .info-tile small { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-40); margin-bottom: 3px; }
 .info-tile b { display: block; font-size: 0.9rem; font-weight: 700; line-height: 1.25; }
 .info-tile.wide { grid-column: 1 / -1; }
+.entry-about { margin-top: 16px; }
+.entry-about h4 { font-size: 1rem; margin-bottom: 6px; }
+.entry-about p {
+  color: var(--cream-80);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.entry-about a {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.entry-about a:hover { color: var(--wattle); }
 .your-photo { margin-top: 16px; }
 .your-photo h4 { font-size: 1rem; margin-bottom: 8px; }
 .your-photo figure { margin: 0; border-radius: 18px; overflow: hidden; position: relative; border: 2px solid var(--wattle); }
