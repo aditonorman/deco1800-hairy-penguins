@@ -292,6 +292,12 @@ function section(name) { console.log("\n" + name); }
   const d0 = (await store()).distance;
   for (let i = 0; i < 4; i++) { await page.click('#dpad [data-dir="n"]'); await sleep(70); }
   check("arrow steps add distance", (await store()).distance - d0 >= 99, Math.round((await store()).distance - d0) + " m");
+  // leaving demo: find-me goes back to your real location
+  await page.click("#btn-locate"); await sleep(server ? 1500 : 500);
+  check("find-me leaves demo mode", !(await isShown("#dpad")) && await page.evaluate(() => !WN_STORE.settings().simulate && !WN_WALK.isSimulating() && !document.getElementById("sim-toggle").checked));
+  if (server) check("and finds your real location", await page.evaluate(() => { const p = WN_WALK.position(); return !!p && Math.abs(p.lat + 27.4747) < 1e-4 && Math.abs(p.lng - 152.93) < 1e-4; }), JSON.stringify(await page.evaluate(() => WN_WALK.position())));
+  await page.evaluate(() => WN_WALK.setSimulate(true, true)); await sleep(300);
+  check("settings switch follows demo mode", await page.$eval("#sim-toggle", el => el.checked) && await isShown("#dpad"));
   await settle();   // distance badges may pop up
 
   // demo mode: the arrows are the only way to move

@@ -101,10 +101,18 @@ const WN_WALK = (function () {
 
 	/* ---- demo mode (simulated position) ---------------------------------- */
 
-	function setSimulate(on, quiet) {
+	/**
+	 * @param quiet     no toast
+	 * @param noAutoGps when turning demo off, the caller starts GPS itself
+	 */
+	function setSimulate(on, quiet, noAutoGps) {
 		state.source = on ? "sim" : "gps";
 		WN_STORE.setSetting("simulate", on);
 		$("#dpad").hidden = !on;
+		$("#sim-toggle").checked = on;
+		const findMe = on ? "Leave demo and find me" : "Find me";
+		$("#btn-locate").setAttribute("aria-label", findMe);
+		$("#btn-locate").title = findMe;
 		document.body.classList.toggle("is-sim", on);
 		if (on) {
 			stopGps();
@@ -116,7 +124,7 @@ const WN_WALK = (function () {
 			WN_MAP.clearYou();
 			state.currentZoneId = null;
 			setHud("Tap the find-me button to start walking", "out");
-			autoStartGps();
+			if (!noAutoGps) autoStartGps();
 		}
 	}
 	function isSimulating() { return state.source === "sim"; }
@@ -156,7 +164,7 @@ const WN_WALK = (function () {
 	/** Demo shortcut: move into the nearest zone that has not been visited yet. */
 	function jumpToNearestZone() {
 		if (!state.zones.length) { WN_UI.toast("No zones here yet. Pick a spot with records first."); return; }
-		if (state.source !== "sim") { setSimulate(true, true); $("#sim-toggle").checked = true; }
+		if (state.source !== "sim") setSimulate(true, true);
 		const from = state.pos || state.centre;
 		const visited = new Set(WN_STORE.stats().zonesVisited);
 		const candidates = state.zones.filter(z => !visited.has(z.id) && z.id !== state.currentZoneId);
@@ -191,10 +199,10 @@ const WN_WALK = (function () {
 	/** Find-me button: ask for the position, follow it, and recentre the search if far away. */
 	function locate() {
 		if (state.source === "sim") {
-			// In demo mode the button recentres on the simulated walker.
-			if (state.pos) WN_MAP.panTo(state.pos.lat, state.pos.lng);
-			else placeAtCentre();
-			return;
+			// "Find me" means the real you: leave demo mode and go back to GPS.
+			// (The follow button still recentres on the demo walker.)
+			setSimulate(false, true, true);
+			WN_UI.toast("Demo off. Finding your real location…", 2500);
 		}
 		if (!("geolocation" in navigator)) { WN_UI.toast("This browser cannot share your location."); return; }
 		state.follow = true;
