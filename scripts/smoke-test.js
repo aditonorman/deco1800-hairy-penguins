@@ -396,6 +396,13 @@ function section(name) { console.log("\n" + name); }
   check("cards rendered", (await page.$$eval(".card", els => els.length)) > 500);
   check("locked cards hide the name", await page.$eval(".card.is-locked .card-name", el => el.textContent === "???"));
   check("cards are numbered", /No\. \d{3}/.test(await page.$eval(".card .card-no", el => el.textContent)));
+  // off screen the grid is dropped, so a long scroll is not redrawn behind the map on every zone collected
+  await page.click('.tabbar button[data-tab="map"]'); await sleep(300);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent("wn:collection", { detail: { quiet: true } }))); await sleep(300);
+  check("leaving the Pokedex drops its cards", (await page.$$eval(".card", els => els.length)) === 0);
+  await page.click('.tabbar button[data-tab="pokedex"]'); await sleep(700);
+  const redrawn = await page.$$eval(".card", els => els.length);
+  check("coming back draws the first batch again", redrawn >= 48 && redrawn < 200, redrawn + " cards");
   await page.click('#group-filter [data-group="bird"]'); await sleep(400);
   check("bird tile filters to birds", await page.$$eval(".card", els => els.length > 0 && els.every(c => c.classList.contains("t-bird"))));
   await page.click('#group-filter [data-group="all"]'); await sleep(300);

@@ -57,11 +57,30 @@ const WN_POKEDEX = (function () {
 		});
 		document.addEventListener("wn:collection", () => schedule());
 		document.addEventListener("wn:image", () => schedule());
-		WN_UI.onTab((tab, changed) => { if (tab === "pokedex" && changed) render(true); });
-		render(false);
+		WN_UI.onTab((tab, changed) => {
+			if (!changed) return;
+			if (tab === "pokedex") render(true);
+			else clear();
+		});
+		if (WN_UI.tab() === "pokedex") render(false);
 	}
 
-	function schedule() { clearTimeout(timer); timer = setTimeout(() => render(false), 80); }
+	/** Redraw soon, but only while the Pokedex is on screen; opening the tab always redraws. */
+	function schedule() {
+		clearTimeout(timer);
+		timer = setTimeout(() => { if (WN_UI.tab() === "pokedex") render(false); }, 80);
+	}
+	/**
+	 * Off screen: drop the cards. After a long scroll the grid can hold all 708,
+	 * and redrawing them behind the map on every zone you collect is too much
+	 * for a phone.
+	 */
+	function clear() {
+		clearTimeout(timer);
+		view = null;
+		shown = 0;
+		grid.innerHTML = "";
+	}
 
 	/* ---- header: ring, summary, group tiles --------------------------------- */
 
