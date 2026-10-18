@@ -113,14 +113,19 @@
 				</div>
 
 				<aside class="explore-card" id="explore-panel" aria-label="Where you are exploring">
-					<button type="button" class="card-handle" id="card-handle" aria-label="Collapse" aria-expanded="true"><span></span></button>
+					<button type="button" class="card-handle" id="card-handle" aria-label="Show more" aria-expanded="false" aria-controls="explore-panel"><span></span></button>
 					<div class="explore-head">
 						<div class="explore-text">
 							<p class="eyebrow"><span id="explore-eyebrow">Exploring</span><span class="live-tag" id="live-tag" hidden>Live</span></p>
 							<h2 id="explore-title">Mt Coot-tha</h2>
+							<p class="explore-mini" id="explore-mini"></p>
 							<p class="summary" id="explore-summary">Loading wildlife records&hellip;</p>
 						</div>
-						<button type="button" class="btn btn-ghost btn-sm" id="panel-toggle" aria-expanded="false" aria-controls="explore-controls">Change</button>
+						<div class="explore-actions">
+							<button type="button" class="btn btn-ghost btn-sm" id="panel-toggle" aria-expanded="false" aria-controls="explore-controls">Change</button>
+							<!-- phones: open / close the card (it starts as a slim bar so the map stays usable) -->
+							<button type="button" class="icon-btn card-expand" id="card-expand" aria-label="Show more" aria-expanded="false"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+						</div>
 					</div>
 					<!-- Map key: always visible, even with the card folded. "Key" opens the full explanation. -->
 					<div class="map-key" role="group" aria-label="Map key">
@@ -156,7 +161,7 @@
 						</div>
 						<p class="hint-text">Drag the map and tap "Search this area" to explore anywhere in Brisbane.</p>
 					</div>
-					<p class="map-credit" id="map-credit"></p>
+					<p class="map-credit js-map-credit" id="map-credit"></p>
 				</aside>
 			</section>
 
@@ -346,6 +351,7 @@
 						<span class="key-text"><b>You</b><small>Your position from GPS, or from the arrows in demo mode.</small></span></li>
 				</ul>
 				<p class="hint-text">Zones show where animals have been recorded, never exactly where an animal is.</p>
+				<p class="map-credit js-map-credit"></p>
 			</div>
 		</aside>
 

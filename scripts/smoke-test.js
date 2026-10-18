@@ -164,15 +164,43 @@ function section(name) { console.log("\n" + name); }
   await page.click("#key-sheet [data-close]");
   check("map key closes", await waitHidden("#key-sheet"));
   check("likely-around-here carousel filled", (await page.$$eval("#nearby-row .nearby-item", els => els.length)) > 3);
-  check("map credit visible", /OpenStreetMap|Esri/.test(await page.$eval("#map-credit", el => el.textContent)));
+  check("map credit in the card and in the map key", await page.$$eval(".js-map-credit", els => els.length === 2 && els.every(el => /OpenStreetMap|Esri/.test(el.textContent))));
   if (server) check("GPS started on its own (permission granted earlier)", (await page.$(".you-marker")) !== null && /away|from/.test(await page.$eval("#hud-zone", el => el.textContent)), await page.$eval("#hud-zone", el => el.textContent));
   await shot("02-map");
+  // phones: the explore card is a bottom sheet that starts as a slim bar
+  const cardOpen = () => page.$eval("#explore-panel", el => !el.classList.contains("is-compact"));
+  const cardHeight = () => page.$eval("#explore-panel", el => el.getBoundingClientRect().height);
+  check("explore card starts as a slim bar", !(await cardOpen()) && (await cardHeight()) < 130, Math.round(await cardHeight()) + " px");
+  check("slim bar shows the place, counts and the map key", await page.evaluate(() => {
+    const vis = (s) => { const el = document.querySelector(s); return el && el.getClientRects().length > 0 && getComputedStyle(el).display !== "none"; };
+    return vis("#explore-title") && vis("#explore-mini") && /zones/.test(document.getElementById("explore-mini").textContent) && vis(".map-key") && !vis(".nearby");
+  }));
+  await page.click("#card-expand"); await sleep(400);
+  check("arrow button opens the card", await cardOpen());
+  await page.click("#card-expand"); await sleep(400);
+  check("arrow button closes it again", !(await cardOpen()));
+  await page.click("#explore-title"); await sleep(400);
+  check("tapping the slim bar opens it", await cardOpen());
+  const hb = await (await page.$("#card-handle")).boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2 + 90, { steps: 6 }); await page.mouse.up(); await sleep(450);
+  check("swiping down closes it", !(await cardOpen()));
+  const hb2 = await (await page.$("#card-handle")).boundingBox();
+  await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + hb2.height / 2); await page.mouse.down();
+  await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + hb2.height / 2 - 90, { steps: 6 }); await page.mouse.up(); await sleep(450);
+  check("swiping up opens it", await cardOpen());
   await page.click("#panel-toggle"); await sleep(300);
   check("Change opens the controls", await isShown("#explore-controls"));
-  await page.click("#panel-toggle"); await sleep(200);
-  await page.click("#card-handle"); await sleep(250);
-  check("handle collapses the card", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));
-  await page.click("#card-handle"); await sleep(250);
+  const mapSpot = await page.evaluate(() => {   // a point where the bare map is on top
+    const r = document.getElementById("map").getBoundingClientRect();
+    for (let y = r.top + 150; y < r.bottom - 100; y += 17) for (let x = r.left + 20; x < r.right - 70; x += 23) {
+      const el = document.elementFromPoint(x, y);
+      if (el && (el.classList.contains("leaflet-tile") || el.classList.contains("leaflet-container"))) return { x, y };
+    }
+    return null;
+  });
+  await page.mouse.click(mapSpot.x, mapSpot.y); await sleep(450);
+  check("tapping the map closes the card and its controls", !(await cardOpen()) && !(await isShown("#explore-controls")));
 
   // tap a zone you are not in
   if (server) { await page.click("#btn-follow"); await page.evaluate(() => WN_MAP.fitCircle()); await sleep(900); }
@@ -482,7 +510,6 @@ function section(name) { console.log("\n" + name); }
 
   // ---- 8. layouts ------------------------------------------------------------------
   section("layouts");
-  await page.evaluate(() => WN_STORE.setSetting("cardCompact", null));   // as for someone who never folded the card
   await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);
   check("small phone: explore card starts folded", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));

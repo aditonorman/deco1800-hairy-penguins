@@ -17,6 +17,7 @@
 	let liveTimer = null;
 	let autoLiveKey = null;      // centre we already tried to fetch live for
 	let pendingHash = null;      // a #friend= link waiting for the intro to finish
+	let closeCard = () => {};    // folds the explore card on phones (set up in bindControls)
 
 	/* ---- helpers ------------------------------------------------------------ */
 
@@ -92,6 +93,7 @@
 		else if (zones.length < 4) text += " A wider radius or longer window will show more.";
 		if (S.source !== "live" && coverage === "partial") text += " Part of this circle is outside the cached data; Live covers all of it.";
 		$("#explore-summary").innerHTML = text;
+		$("#explore-mini").innerHTML = "<strong>" + zones.length + "</strong> zones \u00b7 <strong>" + speciesCount + "</strong> species \u00b7 " + U.formatDistance(S.radius);
 		renderNearby();
 		updateDataHint();
 	}
@@ -192,6 +194,7 @@
 		locSel.value = S.location;
 		locSel.addEventListener("change", () => {
 			S.location = locSel.value; WN_STORE.setSetting("location", S.location);
+			closeCard();                          // show the map for the new place
 			if (S.location === "custom" && S.customLat == null) { WN_UI.toast("Drag the map, then tap Search this area"); return; }
 			settingsChanged(true, true);
 		});
@@ -205,31 +208,69 @@
 		win.value = String(S.window);
 		win.addEventListener("change", () => { S.window = Number(win.value); WN_STORE.setSetting("window", S.window); settingsChanged(false); });
 
-		// explore card: "Change" opens the controls, the handle collapses the card
-		const panel = $("#explore-panel"), toggle = $("#panel-toggle"), controls = $("#explore-controls"), handle = $("#card-handle");
-		const setControls = (open) => {
-			controls.hidden = !open;
-			toggle.textContent = open ? "Done" : "Change";
-			toggle.setAttribute("aria-expanded", String(open));
-			if (open) setCompact(false);
+		// Explore card. Phones: a bottom sheet that starts as a slim bar (place, counts, Change,
+		// map key). Tap the bar, the handle or the arrow to open it; swipe it up or down; tap
+		// the map, drag the map or use the demo arrows to close it. Laptops: always open.
+		const panel = $("#explore-panel"), toggle = $("#panel-toggle"), controls = $("#explore-controls");
+		const handle = $("#card-handle"), expandBtn = $("#card-expand");
+		const isOpen = () => !panel.classList.contains("is-compact");
+		const setOpen = (open) => {
+			if (!WN_UI.isPhone()) open = true;
+			panel.classList.toggle("is-compact", !open);
+			[handle, expandBtn].forEach(b => {
+				b.setAttribute("aria-expanded", String(open));
+				b.setAttribute("aria-label", open ? "Show less" : "Show more");
+			});
+			if (!open && !controls.hidden) setControls(false);
+			if (!open) panel.scrollTop = 0;
 		};
-		const setCompact = (compact, remember) => {
-			panel.classList.toggle("is-compact", compact);
-			handle.setAttribute("aria-expanded", String(!compact));
-			handle.setAttribute("aria-label", compact ? "Expand" : "Collapse");
-			if (remember !== false) WN_STORE.setSetting("cardCompact", compact);
+		const setControls = (show) => {
+			controls.hidden = !show;
+			toggle.textContent = show ? "Done" : "Change";
+			toggle.setAttribute("aria-expanded", String(show));
+			if (show) setOpen(true);
 		};
-		toggle.addEventListener("click", () => setControls(controls.hidden));
-		handle.addEventListener("click", () => { if (!controls.hidden) setControls(false); else setCompact(!panel.classList.contains("is-compact")); });
-		// Short phones start with the card folded so the map (and demo arrows) have room,
-		// until the walker chooses otherwise.
-		setCompact(S.cardCompact == null ? window.innerHeight < 760 : Boolean(S.cardCompact), false);
+		closeCard = () => { if (WN_UI.isPhone() && isOpen()) setOpen(false); };
+		toggle.addEventListener("click", (e) => { e.stopPropagation(); setControls(controls.hidden); });
+		expandBtn.addEventListener("click", (e) => { e.stopPropagation(); setOpen(!isOpen()); });
+		handle.addEventListener("click", (e) => { e.stopPropagation(); if (!swiped) setOpen(!isOpen()); });
+		// a tap anywhere on the slim bar opens it (buttons inside keep their own jobs)
+		panel.addEventListener("click", (e) => {
+			if (swiped || isOpen() || e.target.closest("button, a, input, select, label")) return;
+			setOpen(true);
+		});
+		// swipe up to open, down to close (from the handle or the title area). The finger is
+		// followed across the whole page, so a swipe still counts once it leaves the card.
+		let startY = null, dy = 0, swiped = false;
+		const onMove = (e) => { if (startY !== null) dy = e.clientY - startY; };
+		const endSwipe = () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", endSwipe);
+			window.removeEventListener("pointercancel", endSwipe);
+			if (startY === null) return;
+			startY = null;
+			if (Math.abs(dy) > 28) {
+				swiped = true;
+				setOpen(dy < 0);
+				setTimeout(() => { swiped = false; }, 350);    // ignore the click that follows a swipe
+			}
+		};
+		panel.addEventListener("pointerdown", (e) => {
+			if (!WN_UI.isPhone() || !e.target.closest(".card-handle, .explore-head") || e.target.closest("button:not(.card-handle)")) return;
+			startY = e.clientY; dy = 0; swiped = false;
+			window.addEventListener("pointermove", onMove);
+			window.addEventListener("pointerup", endSwipe);
+			window.addEventListener("pointercancel", endSwipe);
+		});
+		$("#dpad").addEventListener("pointerdown", () => closeCard());
+		setOpen(false);                 // phones start with the slim bar
 		if (!WN_UI.isPhone()) setControls(true);
 		$("#nearby-row").addEventListener("click", (e) => { const b = e.target.closest("[data-key]"); if (b) WN_UI.showEntry(b.dataset.key); });
 
 		// map interactions. Taps never move you, in demo mode too: the arrows are how you walk.
-		WN_MAP.on("mapTap", () => WN_UI.hideZone());
-		WN_MAP.on("zoneTap", (zone) => WN_WALK.openZone(zone));
+		WN_MAP.on("mapTap", () => { WN_UI.hideZone(); closeCard(); });
+		WN_MAP.on("dragStart", () => closeCard());
+		WN_MAP.on("zoneTap", (zone) => { closeCard(); WN_WALK.openZone(zone); });
 		WN_MAP.on("moved", (lat, lng) => {
 			const loc = currentLocation();
 			const far = U.haversine(lat, lng, loc.lat, loc.lng) > Math.max(900, S.radius * 0.8);

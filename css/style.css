@@ -572,7 +572,32 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 .explore-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .explore-text { min-width: 0; }
 .explore-card h2 { font-size: 1.36rem; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.explore-card.is-compact .summary, .explore-card.is-compact .nearby { display: none; }
+.explore-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.card-expand { width: 36px; height: 36px; }
+.card-expand .icon { transition: transform 0.3s var(--spring); }
+.explore-card:not(.is-compact) .card-expand .icon { transform: rotate(180deg); }
+.explore-mini { display: none; font-size: 0.78rem; color: var(--fg-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.explore-mini strong { color: var(--fg); font-weight: 700; }
+
+/* Phones: the card is a bottom sheet. Collapsed (default) it is a slim bar with the place,
+   a one-line count, Change, an expand button and the map key; expanded it shows the summary,
+   "Likely around here", the controls and the map credit. Swipe or tap to switch. */
+@media (max-width: 899px) {
+  .explore-card { padding: 0 14px 10px; max-height: min(60%, calc(100% - 150px - var(--nav-space))); transition: max-height 0.3s var(--ease); }
+  .card-handle { height: 18px; margin-bottom: 0; touch-action: none; }
+  .explore-head { touch-action: none; }
+  .explore-card.is-compact { overflow: hidden; cursor: pointer; }
+  .explore-card.is-compact .eyebrow,
+  .explore-card.is-compact .summary,
+  .explore-card.is-compact .nearby,
+  .explore-card.is-compact .explore-controls,
+  .explore-card.is-compact > .map-credit { display: none !important; }
+  .explore-card.is-compact .explore-head { align-items: center; }
+  .explore-card.is-compact h2 { font-size: 1.12rem; margin: 0; }
+  .explore-card.is-compact .explore-mini { display: block; }
+  .explore-card.is-compact .map-key { margin-top: 8px; padding-top: 8px; }
+  .explore-card.is-dragging { transition: none; }
+}
 .live-tag { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--on-accent); background: var(--eucalyptus); padding: 2px 7px; border-radius: 999px; }
 .nearby { margin-top: 12px; }
 .nearby-title { display: flex; justify-content: space-between; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-60); margin-bottom: 8px; }
@@ -1294,9 +1319,7 @@ img.fade-img.is-loaded { opacity: 1; }
   .dpad .centre { display: grid; grid-column: 2; grid-row: 2; }
   .dpad .right { grid-column: 3; grid-row: 2; } .dpad .down { grid-column: 2; grid-row: 3; }
   .explore-card { left: 18px; right: auto; top: 18px; bottom: auto; width: 380px; max-height: calc(100% - 36px - var(--nav-space)); }
-  .card-handle { display: none; }
-  .explore-card.is-compact .summary, .explore-card.is-compact .nearby { display: block; }
-  .explore-card.is-compact .nearby { display: block; }
+  .card-handle, .card-expand { display: none; }
   .map-top { left: 416px; right: 80px; top: 18px; }
   .statbar { align-self: center; width: min(520px, 100%); }
   .map-side { top: 18px; right: 18px; }
