@@ -778,10 +778,15 @@ img.fade-img.is-loaded { opacity: 1; }
   background: linear-gradient(110deg, var(--shimmer-a) 30%, var(--shimmer-b) 50%, var(--shimmer-a) 70%); background-size: 200% 100%; animation: shimmer 1.6s linear infinite; }
 .card-img img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.45s ease, transform 0.5s var(--ease); }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-.card-no { position: absolute; left: 7px; bottom: 7px; z-index: 2; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(18, 28, 22, 0.6); padding: 3px 7px; border-radius: 999px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* Performance on phones: no live (backdrop) blur inside cards, since hundreds of them ran
+   phones out of graphics memory, and the loading shimmer stops once the photo is in. */
+.card .tier-1 { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20, 30, 24, 0.8); }
+.card-img:has(img.is-loaded), .card-img:has(.group-icon) { animation: none; }
+.dex-more { grid-column: 1 / -1; height: 1px; }
+.card-no { position: absolute; left: 7px; bottom: 7px; z-index: 2; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(18, 28, 22, 0.72); padding: 3px 7px; border-radius: 999px;  }
 .card .tier { position: absolute; top: 7px; left: 7px; z-index: 2; }
 .card-icons { position: absolute; top: 7px; right: 7px; display: flex; gap: 4px; z-index: 2; }
-.card-icon { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; color: var(--wattle); background: rgba(18, 28, 22, 0.6); border: 1px solid rgba(255, 255, 255, 0.16); backdrop-filter: blur(6px); }
+.card-icon { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; color: var(--wattle); background: rgba(18, 28, 22, 0.72); border: 1px solid rgba(255, 255, 255, 0.16); }
 .card-icon .icon { width: 13px; height: 13px; }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
 .card-name { font-family: var(--font-head); font-weight: 700; font-size: 1rem; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

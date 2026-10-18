@@ -34,6 +34,20 @@ fi
 
 cd "$(dirname "$0")"
 
+# Upload a stamped copy, not the working folder: every deploy gets a new
+# version so phones never mix old and new app files (see sw.js). Timestamps
+# are kept (cp -p) so rsync still only sends files that really changed.
+STAMP="$(date +%Y%m%d%H%M%S)"
+STAGE="$(mktemp -d)"
+cp -Rp "${SITE_FILES[@]}" "$STAGE/"
+sed -i '' "s/?v=dev\"/?v=${STAMP}\"/g" "$STAGE/index.html"
+sed -i '' "s/^const VERSION = \"dev\";/const VERSION = \"${STAMP}\";/" "$STAGE/sw.js"
+grep -q "?v=${STAMP}" "$STAGE/index.html" && grep -q "VERSION = \"${STAMP}\"" "$STAGE/sw.js" || { echo "Could not stamp the version; nothing uploaded." >&2; exit 1; }
+cleanup_stage() { rm -rf "$STAGE"; }
+trap cleanup_stage EXIT
+cd "$STAGE"
+echo "Version ${STAMP}"
+
 # Can the zone be reached directly? SSH's own timeout is used because
 # macOS's nc ignores -w while connecting. "Permission denied" still counts
 # as reachable: it only means this computer has no key on the zone.
@@ -82,7 +96,7 @@ else
 		exit 1
 	fi
 	close_eait() { ssh -S "$CTL" -O exit "${UQ_USER}@${JUMP_HOST}" >/dev/null 2>&1 || true; }
-	trap close_eait EXIT
+	trap 'close_eait; cleanup_stage' EXIT
 
 	echo
 	echo "Step 2 of 2: uploading through EAIT..."

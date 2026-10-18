@@ -355,6 +355,16 @@ function section(name) { console.log("\n" + name); }
   section("pokedex");
   await page.click('.tabbar button[data-tab="pokedex"]');
   await sleep(700);
+  // phones: cards are drawn in batches, never all 708 at once
+  const firstBatch = await page.$$eval(".card", els => els.length);
+  check("first batch only (not all 708 at once)", firstBatch >= 48 && firstBatch < 200, firstBatch + " cards");
+  check("no live blur inside cards", await page.evaluate(() => [...document.querySelectorAll("#pokedex-grid *")].every(el => { const cs = getComputedStyle(el); return (cs.backdropFilter || "none") === "none" && (cs.webkitBackdropFilter || "none") === "none"; })));
+  await sleep(1500);
+  const shimmers = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === "shimmer" && a.playState === "running").length);
+  check("loading shimmer stops once photos are in", shimmers < firstBatch, shimmers + " still shimmering of " + firstBatch);
+  for (let i = 0; i < 40; i++) { await page.evaluate(() => { const v = document.getElementById("view-pokedex"); v.scrollTop = v.scrollHeight; }); await sleep(120); }
+  check("scrolling loads every card", (await page.$$eval(".card", els => els.length)) === 708, (await page.$$eval(".card", els => els.length)) + " cards");
+  await page.evaluate(() => { document.getElementById("view-pokedex").scrollTop = 0; });
   check("cards rendered", (await page.$$eval(".card", els => els.length)) > 500);
   check("locked cards hide the name", await page.$eval(".card.is-locked .card-name", el => el.textContent === "???"));
   check("cards are numbered", /No\. \d{3}/.test(await page.$eval(".card .card-no", el => el.textContent)));
@@ -446,6 +456,11 @@ function section(name) { console.log("\n" + name); }
     const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!r; });
     check("service worker registered (offline app shell)", sw);
   }
+  // every app file is loaded with the same ?v= version the service worker uses
+  const html = fs.readFileSync(path.join(PROJECT, "index.html"), "utf8");
+  const swVersion = (fs.readFileSync(path.join(PROJECT, "sw.js"), "utf8").match(/^const VERSION = "([^"]+)"/m) || [])[1];
+  const local = [...html.matchAll(/(?:src|href)="((?:js|css|data)\/[^"]+)"/g)].map(m => m[1]).filter(u => !u.startsWith("data/img/"));   // photos never change
+  check("every app file carries the service worker's version", local.length >= 17 && local.every(u => u.endsWith("?v=" + swVersion)), local.length + " files, version " + swVersion);
 
   // ---- 7b. light / dark theme ------------------------------------------------------
   section("light / dark");

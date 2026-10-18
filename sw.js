@@ -10,15 +10,23 @@
      * Map tiles and live ALA requests are not touched.
    Redirects (for example the UQ login page) are passed straight through and
    never cached.
+
+   Versions: index.html loads every app file as "file?v=VERSION", and deploy.sh
+   replaces "dev" with a fresh stamp in both places on every deploy. Cached app
+   files are only ever matched by their exact versioned address, so a page can
+   never mix files from two deploys (that broke the Pokedex once: an old
+   pokedex.js with a newer ui.js).
    ========================================================================== */
 
-const CACHE = "wild-neighbours-v8";
-const CORE = [
-	"./", "index.html", "css/style.css", "manifest.webmanifest", "data/cached.js",
+const VERSION = "dev";                       // stamped by deploy.sh
+const CACHE = "wild-neighbours-" + VERSION;
+const APP_FILES = [
+	"css/style.css", "data/cached.js",
 	"js/theme.js", "js/config.js", "js/util.js", "js/zones.js", "js/storage.js", "js/data.js", "js/photos.js", "js/icons.js",
-	"js/progress.js", "js/ui.js", "js/map.js", "js/walk.js", "js/pokedex.js", "js/badges.js", "js/app.js",
-	"images/icon.svg", "images/icon-192.png"
+	"js/progress.js", "js/ui.js", "js/map.js", "js/walk.js", "js/pokedex.js", "js/badges.js", "js/app.js"
 ];
+const CORE = ["./", "index.html", "manifest.webmanifest", "images/icon.svg", "images/icon-192.png"]
+	.concat(APP_FILES.map(f => f + "?v=" + VERSION));
 const CDN = /^https:\/\/(unpkg\.com\/leaflet@|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;
 
 self.addEventListener("install", (event) => {
@@ -68,14 +76,16 @@ self.addEventListener("fetch", (event) => {
  * still refreshes the cache in the background).
  */
 function networkFirst(request) {
-	const fallback = () => caches.match(request, { ignoreSearch: true })
+	// Pages may carry a query (?demo); app files must match their exact ?v= version.
+	const opts = { ignoreSearch: request.mode === "navigate" };
+	const fallback = () => caches.match(request, opts)
 		.then(hit => hit || (request.mode === "navigate" ? caches.match("index.html") : null))
 		.then(res => res || Response.error());
 	return new Promise(resolve => {
 		let done = false;
 		const finish = (res) => { if (!done) { done = true; resolve(res); } };
 		const timer = setTimeout(() => {
-			caches.match(request, { ignoreSearch: true }).then(hit => { if (hit) finish(hit); });
+			caches.match(request, opts).then(hit => { if (hit) finish(hit); });
 		}, 3500);
 		fetchAndStore(request)
 			.then(res => { clearTimeout(timer); finish(res); })

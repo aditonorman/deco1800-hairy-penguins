@@ -5,6 +5,8 @@
    are greyed with a "?" and no name; unlocked cards show the photo, a tier
    badge, plus a camera icon if you attached a photo.
    The group tiles at the top double as filters and show progress per group.
+   Cards are drawn in batches of 48 as you scroll, so phones never have to
+   draw all 708 at once.
    ========================================================================== */
 
 const WN_POKEDEX = (function () {
@@ -16,6 +18,25 @@ const WN_POKEDEX = (function () {
 	const NEW_MS = 30 * 60 * 1000;       // unlocked in the last 30 minutes = "new"
 	let nearbyKeys = () => new Set();
 	let timer = null;
+	const BATCH = 48;          // cards drawn per batch
+	let shown = 0;             // cards currently in the grid
+	let view = null;           // the filtered, sorted list being shown
+
+	// An invisible last item: when it scrolls near the screen, draw the next batch.
+	const sentinel = document.createElement("li");
+	sentinel.className = "dex-more";
+	sentinel.setAttribute("aria-hidden", "true");
+	const scroller = document.getElementById("view-pokedex");
+	let moreQueued = false;
+	/** Draw another batch while the end of the grid is within 800 px of the screen. */
+	function checkMore() {
+		moreQueued = false;
+		if (!sentinel.isConnected || scroller.hidden) return;
+		if (sentinel.getBoundingClientRect().top - scroller.getBoundingClientRect().bottom < 800) appendCards(BATCH);
+	}
+	function queueMore() { if (!moreQueued) { moreQueued = true; requestAnimationFrame(checkMore); } }
+	scroller.addEventListener("scroll", queueMore, { passive: true });
+	window.addEventListener("resize", queueMore);
 
 	function init(nearbyFn) {
 		nearbyKeys = nearbyFn;
@@ -92,6 +113,20 @@ const WN_POKEDEX = (function () {
 	}
 
 	function render(animate) {
+		try { draw(animate); }
+		catch (err) {
+			// Never leave a blank or crashed tab: say what happened and offer a reload.
+			console.error("Pokedex render failed", err);
+			grid.innerHTML = '<li class="empty">The Pokedex could not load. <button type="button" class="btn btn-ghost btn-sm" onclick="location.reload()">Reload</button></li>';
+		}
+	}
+
+	/**
+	 * Build the grid in batches: the first BATCH cards straight away, then more
+	 * as the bottom comes into view. Drawing all 708 cards at once crashed
+	 * phone browsers (out of graphics memory).
+	 */
+	function draw(animate) {
 		const nearby = nearbyKeys();
 		const entries = WN_STORE.allEntries();
 		renderHead(entries);
@@ -111,7 +146,22 @@ const WN_POKEDEX = (function () {
 		});
 		list = sortList(list, entries);
 
-		grid.innerHTML = list.map((sp, i) => {
+		// keep at least as many cards as were showing, so a refresh does not jump the scroll
+		const keep = animate ? BATCH : Math.max(BATCH, shown);
+		view = { list, entries, nearby, now, animate };
+		shown = 0;
+		grid.innerHTML = list.length ? "" : '<li class="empty">Nothing matches those filters.</li>';
+		appendCards(keep);
+	}
+
+	/** Add the next `count` cards from the current list, then re-arm the "load more" watcher. */
+	function appendCards(count) {
+		if (!view) return;
+		const { list, entries, nearby, now, animate } = view;
+		const end = Math.min(list.length, shown + count);
+		if (end <= shown) return;
+		const html = list.slice(shown, end).map((sp, j) => {
+			const i = shown + j;
 			const entry = entries[sp.key];
 			const locked = !entry;
 			const fresh = entry && now - new Date(entry.tierAt || entry.unlockedAt).getTime() < NEW_MS;
@@ -132,7 +182,10 @@ const WN_POKEDEX = (function () {
 					'<div class="card-meta">' + WN_UI.typeChip(sp) + "</div>" +
 				"</div>" +
 			"</button></li>";
-		}).join("") || '<li class="empty">Nothing matches those filters.</li>';
+		}).join("");
+		grid.insertAdjacentHTML("beforeend", html);
+		shown = end;
+		if (shown < list.length) { grid.appendChild(sentinel); queueMore(); } else sentinel.remove();
 	}
 
 	return { init, render: schedule };
