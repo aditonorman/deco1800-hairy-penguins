@@ -8,7 +8,8 @@
 # zone. Anywhere else, the script goes through EAIT's public SSH host
 # (remote.labs.eait.uq.edu.au), so it works from overseas without the VPN.
 # EAIT asks for your UQ password, then shows a signin.uq.edu.au link to approve in
-# a browser before you press Enter. The zone itself uses your SSH key if it has one.
+# a browser before you press Enter. That happens once per deploy: the script keeps
+# the EAIT connection open and reuses it. The zone itself uses your SSH key.
 #   VIA_EAIT=1 ./deploy.sh s1234567     always go through EAIT
 #
 # Files land in /var/www/htdocs, which is what nginx serves.
@@ -60,17 +61,41 @@ if [ "${VIA_EAIT:-}" != "1" ] && zone_reachable; then
 else
 	echo "The zone is not reachable directly (you are not on the UQ network or VPN)."
 	echo "Going through EAIT's SSH host ${JUMP_HOST}."
-	echo "When asked: type your UQ password, open the sign-in link EAIT shows,"
-	echo "approve it in your browser, then come back here and press Enter."
 	echo
-	# One hop: EAIT forwards the connection to the zone.
-	if ! rsync "${RSYNC_OPTS[@]}" -e "ssh -o ProxyJump=${UQ_USER}@${JUMP_HOST}" \
+	echo "Step 1 of 2: sign in to EAIT (once for this whole deploy)."
+	echo "  - Type your UQ password (nothing shows while you type)."
+	echo "  - Open the signin.uq.edu.au link it prints and approve it in your browser."
+	echo "  - Only press Enter here AFTER the browser says you are signed in."
+	echo
+
+	# Sign in once and keep that connection open. Every later step reuses it, so
+	# there is exactly one password and one browser approval per deploy.
+	# A fixed path (no %h/%p tokens) because it is also used inside ProxyCommand.
+	CTL="${HOME}/.ssh/wn-eait-${UQ_USER}.sock"
+	rm -f "$CTL"
+	if ! ssh -M -S "$CTL" -o ControlPersist=900 -o ServerAliveInterval=30 -fN "${UQ_USER}@${JUMP_HOST}"; then
+		echo
+		echo "Could not sign in to EAIT, so nothing was uploaded."
+		echo "  - Press Enter only after the browser confirms the sign-in."
+		echo "  - The link expires after a few minutes; run ./deploy.sh again for a new one."
+		echo "  - If you changed your UQ password recently, use the new one."
+		exit 1
+	fi
+	close_eait() { ssh -S "$CTL" -O exit "${UQ_USER}@${JUMP_HOST}" >/dev/null 2>&1 || true; }
+	trap close_eait EXIT
+
+	echo
+	echo "Step 2 of 2: uploading through EAIT..."
+	# One hop: EAIT forwards the connection to the zone (the zone uses this Mac's SSH key).
+	JUMP="ssh -S ${CTL} -W %h:%p ${UQ_USER}@${JUMP_HOST}"
+	if ! rsync "${RSYNC_OPTS[@]}" -e "ssh -o 'ProxyCommand=${JUMP}'" \
 		"${SITE_FILES[@]}" "${UQ_USER}@${ZONE_HOST}:${REMOTE_DIR}/"; then
-		# Two hops: copy to your EAIT home folder, then from EAIT to the zone.
+		# Two hops over the same EAIT sign-in: copy to your EAIT home folder,
+		# then from EAIT to the zone (that last hop asks for your UQ password).
 		echo
 		echo "Forwarding through EAIT did not work. Trying a two-step copy instead..."
-		rsync "${RSYNC_OPTS[@]}" "${SITE_FILES[@]}" "${UQ_USER}@${JUMP_HOST}:${STAGE_DIR}/"
-		ssh -t "${UQ_USER}@${JUMP_HOST}" \
+		rsync "${RSYNC_OPTS[@]}" -e "ssh -S ${CTL}" "${SITE_FILES[@]}" "${UQ_USER}@${JUMP_HOST}:${STAGE_DIR}/"
+		ssh -S "$CTL" -t "${UQ_USER}@${JUMP_HOST}" \
 			"rsync -avz ${STAGE_DIR}/ ${UQ_USER}@${ZONE_HOST}:${REMOTE_DIR}/"
 	fi
 fi

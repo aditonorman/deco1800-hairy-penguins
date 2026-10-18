@@ -122,6 +122,14 @@
 						</div>
 						<button type="button" class="btn btn-ghost btn-sm" id="panel-toggle" aria-expanded="false" aria-controls="explore-controls">Change</button>
 					</div>
+					<!-- Map key: always visible, even with the card folded. "Key" opens the full explanation. -->
+					<div class="map-key" role="group" aria-label="Map key">
+						<span class="mk-item"><i class="mk-swatch zone" aria-hidden="true"></i>Zone</span>
+						<span class="mk-item"><i class="mk-swatch visited" aria-hidden="true"></i>Visited</span>
+						<span class="mk-item"><i class="mk-swatch threat" aria-hidden="true"></i>Threatened</span>
+						<span class="mk-item"><i class="mk-swatch you" aria-hidden="true"></i>You</span>
+						<button type="button" class="mk-more" id="btn-map-key" aria-haspopup="dialog" aria-label="Map key"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4.5h1"/></svg><span class="mk-more-text">Key</span></button>
+					</div>
 					<div class="nearby" id="nearby-wrap">
 						<p class="nearby-title"><span>Likely around here</span><span id="nearby-count"></span></p>
 						<div class="nearby-row" id="nearby-row"></div>
@@ -145,13 +153,6 @@
 									<option value="0">All cached records</option>
 								</select>
 							</label>
-						</div>
-						<div class="legend" aria-label="Map key">
-							<span><i class="legend-dot zone"></i>Habitat zone</span>
-							<span><i class="legend-dot visited"></i>Visited</span>
-							<span><i class="legend-dot threat"></i>Threatened species</span>
-							<span><i class="legend-dot types"></i>Animal types recorded</span>
-							<span><i class="legend-dot you"></i>You</span>
 						</div>
 						<p class="hint-text">Drag the map and tap "Search this area" to explore anywhere in Brisbane.</p>
 					</div>
@@ -196,7 +197,6 @@
 									<option value="no">No.</option>
 									<option value="name">A to Z</option>
 									<option value="recent">Recently found</option>
-									<option value="rare">Rarest first</option>
 								</select>
 							</label>
 						</div>
@@ -314,6 +314,38 @@
 			<div class="sheet-body">
 				<p class="sheet-hint" id="zone-hint" hidden></p>
 				<ul id="zone-species"></ul>
+			</div>
+		</aside>
+
+		<!-- Map key: what every colour and mark on the map means -->
+		<aside class="sheet" id="key-sheet" role="dialog" aria-modal="true" aria-labelledby="key-title" hidden>
+			<div class="sheet-handle" aria-hidden="true"></div>
+			<div class="sheet-head">
+				<div>
+					<p class="eyebrow">Map key</p>
+					<h2 id="key-title">What the map shows</h2>
+				</div>
+				<button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+			</div>
+			<div class="sheet-body">
+				<ul class="key-list">
+					<li><span class="key-visual"><i class="mk-swatch lg zone"></i></span>
+						<span class="key-text"><b>Habitat zone</b><small>Wildlife has been recorded here recently. Zones next to each other use different greens so you can tell them apart.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg visited"></i></span>
+						<span class="key-text"><b>Visited</b><small>Zones you have walked into turn gold.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg threat"></i></span>
+						<span class="key-text"><b>Threatened species recorded</b><small>A coral edge. Give these animals extra space.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg here"></i></span>
+						<span class="key-text"><b>The zone you are in</b><small>Outlined in orange, and the status bar at the top names it.</small></span></li>
+					<li><span class="key-visual" id="key-chip-sample"></span>
+						<span class="key-text"><b>Zone label</b><small>How many species were recorded in the zone, and which kinds of animal. Zoom in to see its name.</small></span></li>
+					<li class="key-types-row"><span class="key-text"><b>Kinds of animal</b></span><span class="key-types" id="key-types"></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg area"></i></span>
+						<span class="key-text"><b>Search area</b><small>The circle the app looks in. Drag the map and tap "Search this area" to move it.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg you"></i></span>
+						<span class="key-text"><b>You</b><small>Your position from GPS, or from the arrows in demo mode.</small></span></li>
+				</ul>
+				<p class="hint-text">Zones show where animals have been recorded, never exactly where an animal is.</p>
 			</div>
 		</aside>
 

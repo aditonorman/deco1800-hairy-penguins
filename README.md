@@ -9,7 +9,7 @@ Pick a spot and a radius, see recent wildlife records as shaded **habitat zones*
 your personal Pokedex. Entering a zone always counts, so a walk with no sightings still makes
 progress. You can attach your own photo to any unlocked entry as a private keepsake.
 
-Progress earns **XP, ranger levels and 53 badges**, and you can **compare with friends** by
+Progress earns **XP, ranger levels and 52 badges**, and you can **compare with friends** by
 swapping a share link. It is built mobile-first like a native app and can be installed to a
 phone's home screen.
 
@@ -52,10 +52,10 @@ localStorage and IndexedDB. There are no accounts and no server.
 
 | View | What it does |
 |---|---|
-| **Map** | The main screen. Habitat zones are drawn as separate cells: overlapping zones are split down the middle with a thin gap, neighbouring cells get different shades of green, visited zones turn gold, and a coral edge marks a threatened species. A chip on each zone shows how many species live there with a coloured dot per animal type; names appear when you zoom in. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. |
+| **Map** | The main screen. Habitat zones are drawn as separate cells: overlapping zones are split down the middle with a thin gap, neighbouring cells get different shades of green, visited zones turn gold, and a coral edge marks a threatened species. A label on each zone shows how many species were recorded there with an icon per kind of animal; names appear when you zoom in. A **map key** row in the explore card (visible even when the card is folded) names the colours, and its **Key** button opens a full explanation of every colour and mark. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. |
 | **Entering a zone** | Every species recorded there joins your Pokedex at *zone visit* tier straight away. Instead of a pop-up, a small alert card slides in at the side ("4 new birds collected") with a safety reminder; nothing opens until you tap it. Tapping the card, or the status pill while you are in the zone, opens the zone sheet with the new species marked **New** and **I spotted it** / **Saw signs** buttons. Cards close themselves after a few seconds unless touched, and can be swiped away. You choose which animals trigger a card (see Settings). |
-| **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
-| **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 53 badges by category, and a friends leaderboard. |
+| **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name or recently found. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit) and a camera icon if you added a photo. The entry view shows the ALA photo, record count, activity, a short Wikipedia description, when and where you unlocked it, and your own photo. |
+| **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 52 badges by category, and a friends leaderboard. |
 | **Settings** (gear icon) | **Appearance**: Auto, Light or Dark. **Alerts while walking**: turn alert cards on or off, and pick which animal types (mammals, birds, reptiles, frogs) trigger a zone card. Species are collected either way; the zone sheet links straight here. Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (walk with the on-screen arrows, tap for a 25 m step or hold to keep walking, or use the arrow keys; tapping the map never moves you), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). The app only interrupts
@@ -72,7 +72,6 @@ Everything is derived from what is saved on the device, so XP and badges never d
 | Source | XP |
 |---|---|
 | Species at zone visit / signs / sighted tier | 10 / 30 / 60 |
-| Rarity bonus (uncommon / rare / very rare) | +5 / +15 / +30 |
 | Each zone visited | 25 |
 | Every 100 m walked | 5 |
 | Each entry with your photo | 15 |
@@ -80,10 +79,10 @@ Everything is derived from what is saved on the device, so XP and badges never d
 
 Each level costs 50 XP more than the last (level 2 at 100 XP, level 3 at 250, level 5 at 700).
 Ranks run Fresh Tracks, Trail Scout, Bush Explorer, Wildlife Spotter, Habitat Ranger, Field
-Naturalist and Living Legend. Rarity comes from how many records a species has in the cached
-data: common (100+), uncommon (25+), rare (5+) and very rare.
+Naturalist and Living Legend. There is deliberately **no species rarity**: rewarding rare animals
+would push people to seek out the species that most need to be left alone.
 
-**Badges** (53, in bronze, silver, gold and holographic legendary):
+**Badges** (52, in bronze, silver, gold and holographic legendary):
 
 | Category | Examples |
 |---|---|
@@ -91,7 +90,7 @@ data: common (100+), uncommon (25+), rare (5+) and very rare.
 | Animal groups | Birdwatcher, Twitcher, Flock Leader; mammals, reptiles and frogs; Full House (one of each group) |
 | Sightings and signs | First Sighting to Hawkeye (50 sightings); Track Reader to Master Tracker |
 | On the move | 1 km to 100 km walked, including Half Marathon and Marathon Ranger; 1 to 30 zones; zones in 3, 8 and 15 areas of Brisbane at least 2 km apart |
-| Conservation | Guardian (a threatened species), Aussie Icons and Brisbane Big Ten (koala, kookaburra, echidna, platypus, water dragon, lace monitor, grey kangaroo, tawny frogmouth, green tree frog, carpet python), Koala Moment, Rare Find |
+| Conservation | Guardian (a threatened species), Aussie Icons and Brisbane Big Ten (koala, kookaburra, echidna, platypus, water dragon, lace monitor, grey kangaroo, tawny frogmouth, green tree frog, carpet python), Koala Moment |
 | Habits and journal | 3- and 7-day streaks, 30 active days, Four Seasons, 1, 10 and 25 photos |
 | Friends | First friend, five friends |
 | Secret | Two hidden badges with hints |
@@ -215,7 +214,7 @@ js/storage.js           localStorage collection + stats, IndexedDB photos
 js/data.js              Cached data loading, live ALA fetch, images
 js/photos.js            Pick, resize, store a personal photo
 js/icons.js             Inline SVG icons and animal silhouettes
-js/progress.js          XP, levels, 53 badges, friend cards (pure functions, Node-testable)
+js/progress.js          XP, levels, 52 badges, friend cards (pure functions, Node-testable)
 js/ui.js                Tabs, sheets, zone sheet, entry view, celebrations, confetti
 js/map.js               Leaflet map, zone shapes, ripples, "you are here"
 js/walk.js              Walking: GPS or simulated position, zone entry, reports
@@ -249,7 +248,7 @@ Every colour lives in semantic tokens at the top of `css/style.css` (`--bg`, `--
 rather than hex values. A Brisbane "bush" palette adds colour Pokedex-style in both themes,
 one per animal type: kingfisher blue `#5aaee0` for birds, galah pink `#ec8fb1` for mammals,
 jacaranda `#a48be8` for reptiles and eucalyptus `#52c3a4` for frogs, with wattle gold `#f3cd52`
-for XP, rarity and gold medals. DM Sans is used for headings and UI, via Google Fonts. All icons
+for XP and gold medals. DM Sans is used for headings and UI, via Google Fonts. All icons
 are inline SVG.
 
 It is built like a native app: fixed header, full-bleed map, a floating glass tab bar with a

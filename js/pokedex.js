@@ -3,7 +3,7 @@
    --------------------------------------------------------------------------
    A numbered card for every species, coloured by animal type. Locked cards
    are greyed with a "?" and no name; unlocked cards show the photo, a tier
-   badge and rarity pips, plus a camera icon if you attached a photo.
+   badge, plus a camera icon if you attached a photo.
    The group tiles at the top double as filters and show progress per group.
    ========================================================================== */
 
@@ -88,11 +88,6 @@ const WN_POKEDEX = (function () {
 				return byNo(a, b);
 			});
 		}
-		if (filters.sort === "rare") {
-			// fewest records first; species with no recent records go last
-			const rank = (s) => s.recordCount > 0 ? s.recordCount : 1e9;
-			return list.sort((a, b) => (rank(a) - rank(b)) || byNo(a, b));
-		}
 		return list.sort(byNo);
 	}
 
@@ -134,7 +129,7 @@ const WN_POKEDEX = (function () {
 				"</div>" +
 				'<div class="card-body">' +
 					'<div class="card-name">' + (locked ? "???" : U.esc(sp.displayName)) + "</div>" +
-					'<div class="card-meta">' + WN_UI.typeChip(sp) + WN_UI.rarityPips(sp) + "</div>" +
+					'<div class="card-meta">' + WN_UI.typeChip(sp) + "</div>" +
 				"</div>" +
 			"</button></li>";
 		}).join("") || '<li class="empty">Nothing matches those filters.</li>';

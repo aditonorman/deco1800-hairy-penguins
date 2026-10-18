@@ -12,7 +12,7 @@
    never cached.
    ========================================================================== */
 
-const CACHE = "wild-neighbours-v7";
+const CACHE = "wild-neighbours-v8";
 const CORE = [
 	"./", "index.html", "css/style.css", "manifest.webmanifest", "data/cached.js",
 	"js/theme.js", "js/config.js", "js/util.js", "js/zones.js", "js/storage.js", "js/data.js", "js/photos.js", "js/icons.js",

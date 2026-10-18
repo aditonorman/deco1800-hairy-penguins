@@ -152,6 +152,17 @@ function section(name) { console.log("\n" + name); }
   check("visible chips never overlap", await chipsClear());
   check("chips show animal-type dots", (await page.$$eval(".zone-chip .zc-dots i", els => els.length)) > 0);
   check("no safety banner element any more", (await page.$("#safety-banner")) === null);
+  // map key: visible at first glance, full key one tap away
+  check("map key visible on the map screen", await isShown(".map-key") && (await page.$$eval(".map-key .mk-item", els => els.length)) === 4);
+  check("no rarity anywhere on screen", await page.evaluate(() => !/rarity|rarest|rare find/i.test(document.body.innerText)));
+  await page.click("#btn-map-key");
+  check("Key opens the full map key", await waitShown("#key-sheet"));
+  check("full key explains zones, labels, animal types and you", await page.$eval("#key-sheet", el =>
+    ["Habitat zone", "Visited", "Threatened", "The zone you are in", "Zone label", "Search area", "You"].every(t => el.textContent.includes(t)) &&
+    el.querySelectorAll("#key-types .key-type").length === 4 && el.querySelectorAll("#key-chip-sample .zc-ico").length === 3));
+  await shot("02b-map-key");
+  await page.click("#key-sheet [data-close]");
+  check("map key closes", await waitHidden("#key-sheet"));
   check("likely-around-here carousel filled", (await page.$$eval("#nearby-row .nearby-item", els => els.length)) > 3);
   check("map credit visible", /OpenStreetMap|Esri/.test(await page.$eval("#map-credit", el => el.textContent)));
   if (server) check("GPS started on its own (permission granted earlier)", (await page.$(".you-marker")) !== null && /away|from/.test(await page.$eval("#hud-zone", el => el.textContent)), await page.$eval("#hud-zone", el => el.textContent));
@@ -357,7 +368,7 @@ function section(name) { console.log("\n" + name); }
   await shot("08-pokedex");
   await page.$eval(".card.is-unlocked", el => el.click());
   check("entry opens", await waitShown("#entry-modal"));
-  check("entry shows number, tiles and unlock details", await page.$eval("#entry-body", el => /No\. \d{3}/.test(el.textContent) && /Rarity/.test(el.textContent) && /Unlocked/.test(el.textContent)));
+  check("entry shows number, tiles and unlock details", await page.$eval("#entry-body", el => /No\. \d{3}/.test(el.textContent) && /Records/.test(el.textContent) && !/Rarity/.test(el.textContent) && /Unlocked/.test(el.textContent)));
   const sample = path.join(PROJECT, "data/img", (await page.evaluate(() => Object.keys(window.WN_CACHED.images).find(k => window.WN_CACHED.images[k].local))) + ".jpg");
   await sleep(500);
   const [chooser] = await Promise.all([page.waitForFileChooser({ timeout: 5000 }), page.$eval('#entry-body [data-act="photo"]', el => el.click())]);
@@ -379,7 +390,7 @@ function section(name) { console.log("\n" + name); }
   await sleep(900);
   const sb = await store();
   check("ranger card shows the level", Number(await page.$eval(".ranger-level-text b", el => el.textContent)) === sb.level);
-  check("all 53 badges listed", (await page.$$eval(".badge-tile", els => els.length)) === 53);
+  check("all 52 badges listed", (await page.$$eval(".badge-tile", els => els.length)) === 52);
   check("earned count matches", (await page.$$eval(".badge-tile.is-earned", els => els.length)) === sb.badges.length, sb.badges.length);
   check("next-up goals shown", (await page.$$eval(".next-card", els => els.length)) === 3);
   check("secret badges stay secret", (await page.$$eval(".badge-tile", els => els.filter(e => /Secret badge/.test(e.textContent)).length)) >= 1);
@@ -460,6 +471,7 @@ function section(name) { console.log("\n" + name); }
   await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);
   check("small phone: explore card starts folded", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));
+  check("small phone: map key still visible with the card folded", await isShown(".map-key"));
   await page.evaluate(() => WN_WALK.jumpToNearestZone());
   await waitShown(".notif", 3000);
   check("small phone: arrows stay clear of cards and panels", await onTop("#dpad button"), "4 arrows");

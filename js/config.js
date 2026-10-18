@@ -136,18 +136,12 @@ const WN_CONFIG = {
 	GROUP_ORDER: ["mammal", "bird", "reptile", "frog"],
 	GROUP_PLURALS: { mammal: "Mammals", bird: "Birds", reptile: "Reptiles", frog: "Frogs" },
 
-	/* Rarity from how many records a species has in the cached data. */
-	RARITY: [
-		{ id: "common", label: "Common", min: 100, pips: 1 },
-		{ id: "uncommon", label: "Uncommon", min: 25, pips: 2 },
-		{ id: "rare", label: "Rare", min: 5, pips: 3 },
-		{ id: "veryrare", label: "Very rare", min: 0, pips: 4 }
-	],
+	/* There is deliberately no species "rarity": rewarding rare animals would
+	   push people to seek out the species that most need to be left alone. */
 
 	/* XP rules. Everything is derived from saved progress, so XP never drifts. */
 	XP: {
 		tier: { 1: 10, 2: 30, 3: 60 },                  // per species, at its current tier
-		rarity: { common: 0, uncommon: 5, rare: 15, veryrare: 30 },
 		zone: 25,                                       // per zone visited
 		per100m: 5,                                     // per 100 m walked
 		photo: 15,                                      // per entry with your photo

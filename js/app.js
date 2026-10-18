@@ -251,6 +251,7 @@
 		// settings sheet
 		$("#btn-settings").addEventListener("click", () => WN_UI.showSettings());
 		bindAlerts();
+		bindMapKey();
 		$$("[data-source]").forEach(b => b.addEventListener("click", () => b.dataset.source === "live" ? goLive() : goCached()));
 		const sim = $("#sim-toggle");
 		sim.checked = Boolean(S.simulate);
@@ -273,6 +274,18 @@
 			WN_PROGRESS.schedule({ quiet: Boolean(e.detail && e.detail.quiet) });
 		});
 		window.addEventListener("hashchange", handleHash);
+	}
+
+	/* ---- map key ------------------------------------------------------------------------ */
+
+	/** Fill the full key with a real zone label and the animal icons, and open it from "Key". */
+	function bindMapKey() {
+		const ico = (g) => '<i class="zc-ico" style="--type:' + WN_CONFIG.TYPE_COLORS[g] + '">' + I(WN_CONFIG.GROUP_ICONS[g]) + "</i>";
+		// same markup as a label on the map: species count + one icon per kind of animal
+		$("#key-chip-sample").innerHTML = '<span class="zc-pill"><b>12</b><span class="zc-dots">' + ["mammal", "bird", "frog"].map(ico).join("") + "</span></span>";
+		$("#key-types").innerHTML = WN_CONFIG.GROUP_ORDER.map(g =>
+			'<span class="key-type">' + ico(g) + WN_CONFIG.GROUP_LABELS[g] + "</span>").join("");
+		$("#btn-map-key").addEventListener("click", () => { WN_UI.hideZone(); WN_UI.openSheet("key-sheet"); });
 	}
 
 	/* ---- alerts while walking ---------------------------------------------------------- */
