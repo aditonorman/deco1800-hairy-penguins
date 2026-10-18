@@ -40,6 +40,10 @@ asks for your UQ password, then shows a `signin.uq.edu.au` link: open it, approv
 your browser, and press Enter in the terminal. `VIA_EAIT=1 ./deploy.sh ...` always uses the EAIT
 route.
 
+Each deploy uploads a stamped copy: `deploy.sh` replaces `?v=dev` in `index.html` and
+`VERSION = "dev"` in `sw.js` with the date and time, so phones never mix files from two deploys.
+Keep `?v=dev` on any new script or stylesheet you add to `index.html`; the smoke test checks it.
+
 On a real phone, use the zone URL (HTTPS) so the browser allows geolocation and the camera.
 Add it to the home screen (Share > Add to Home Screen on iPhone, the install prompt on Android)
 and it opens full screen like an app, and opens offline after the first visit. Indoors, open
@@ -222,7 +226,7 @@ js/pokedex.js           Numbered species grid, group tiles, filters and sorting
 js/badges.js            Badges tab: ranger card, badges, leaderboard, compare, share
 js/app.js               Bootstrap, explore card, intro, friend links, settings, demo tools
 js/theme.js             Light / dark theme (runs in <head>, sets data-theme)
-sw.js                   Service worker: opens offline after the first visit
+sw.js                   Service worker: opens offline after the first visit (never mixes deploys)
 manifest.webmanifest    Install to home screen (name, icons, colours)
 images/                 App icons
 data/                   Cached WildNet + ALA data (generated)
