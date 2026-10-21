@@ -4,7 +4,7 @@
  * main flows: first-run intro, zones drawn as separate cells with chips,
  * GPS walking (emulated positions), quiet alert cards on zone entry, alert
  * filters by animal group, demo tools, celebrations for things the user
- * taps, Pokedex, photo attach, Badges tab, friend links, persistence,
+ * taps, Wildex, photo attach, Badges tab, friend links, persistence,
  * light / dark theme,
  * offline support and layout at phone, small-phone and laptop sizes.
  * Screenshots go to scripts/screenshots/.
@@ -117,7 +117,7 @@ function section(name) { console.log("\n" + name); }
   const cards = (kind) => page.$$eval(".notif" + (kind ? ".is-" + kind : ""), els => els.filter(e => !e.classList.contains("is-leaving")).length);
   const clearCards = () => page.evaluate(() => document.querySelectorAll(".notif").forEach(n => n.remove()));
   const noOverflow = () => page.evaluate(() => {
-    const views = ["view-map", "view-pokedex", "view-badges"].map(id => document.getElementById(id)).filter(v => !v.hidden);
+    const views = ["view-map", "view-wildex", "view-badges"].map(id => document.getElementById(id)).filter(v => !v.hidden);
     return document.documentElement.scrollWidth <= document.documentElement.clientWidth && views.every(v => v.scrollWidth <= v.clientWidth + 1);
   });
 
@@ -340,9 +340,9 @@ function section(name) { console.log("\n" + name); }
   }
   await settle();
 
-  // ---- 5. pokedex ----------------------------------------------------------------
-  section("pokedex");
-  await page.click('.tabbar button[data-tab="pokedex"]');
+  // ---- 5. wildex ----------------------------------------------------------------
+  section("wildex");
+  await page.click('.tabbar button[data-tab="wildex"]');
   await sleep(700);
   check("cards rendered", (await page.$$eval(".card", els => els.length)) > 500);
   check("locked cards hide the name", await page.$eval(".card.is-locked .card-name", el => el.textContent === "???"));
@@ -354,7 +354,7 @@ function section(name) { console.log("\n" + name); }
   const found = await page.$$eval(".card", els => els.length);
   check("Found filter shows unlocked entries", found === (await store()).species, found);
   await page.select("#dex-sort", "recent"); await sleep(300);
-  await shot("08-pokedex");
+  await shot("08-wildex");
   await page.$eval(".card.is-unlocked", el => el.click());
   check("entry opens", await waitShown("#entry-modal"));
   check("entry shows number, tiles and unlock details", await page.$eval("#entry-body", el => /No\. \d{3}/.test(el.textContent) && /Rarity/.test(el.textContent) && /Unlocked/.test(el.textContent)));
@@ -468,14 +468,14 @@ function section(name) { console.log("\n" + name); }
   for (const [w, h, label] of [[375, 667, "small-phone"], [1366, 860, "laptop"]]) {
     await page.setViewport({ width: w, height: h, deviceScaleFactor: 1, isMobile: w < 900, hasTouch: w < 900 });
     await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);
-    for (const tab of ["map", "pokedex", "badges"]) {
+    for (const tab of ["map", "wildex", "badges"]) {
       await page.click(`.tabbar button[data-tab="${tab}"]`); await sleep(500);
       check(`${label}: ${tab} fits the screen`, await noOverflow());
       await shot(`12-${label}-${tab}`);
     }
   }
   await page.$eval(".card.is-unlocked", el => el.click()).catch(() => {});
-  await page.click('.tabbar button[data-tab="pokedex"]'); await sleep(400);
+  await page.click('.tabbar button[data-tab="wildex"]'); await sleep(400);
   await page.$eval(".card.is-unlocked", el => el.click());
   await waitShown("#entry-modal");
   check("laptop: entry shows photo and details side by side", await page.evaluate(() => getComputedStyle(document.getElementById("entry-body")).gridTemplateColumns.split(" ").length === 2));

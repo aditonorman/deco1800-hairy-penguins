@@ -27,8 +27,8 @@ const WN_UI = (function () {
 
 	/* ---- tabs -------------------------------------------------------------- */
 
-	const TABS = ["map", "pokedex", "badges"];
-	const VIEWS = { map: "view-map", pokedex: "view-pokedex", badges: "view-badges" };
+	const TABS = ["map", "wildex", "badges"];
+	const VIEWS = { map: "view-map", wildex: "view-wildex", badges: "view-badges" };
 	let currentTab = "map";
 	const tabListeners = [];
 

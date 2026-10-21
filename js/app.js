@@ -79,7 +79,7 @@
 		WN_MAP.setCentre(loc.lat, loc.lng, S.radius, fit);
 		WN_MAP.renderZones(zones, animate);
 		WN_WALK.setZones(zones, { lat: loc.lat, lng: loc.lng, place: shortName(loc) });
-		WN_POKEDEX.render();
+		WN_WILDEX.render();
 		$("#btn-search-here").hidden = true;
 
 		$("#explore-title").textContent = shortName(loc);
@@ -258,9 +258,9 @@
 		$("#btn-jump").addEventListener("click", () => { WN_UI.hideSettings(); WN_UI.showTab("map"); WN_WALK.jumpToNearestZone(); });
 		$("#btn-replay-intro").addEventListener("click", () => { WN_UI.hideSettings(); showOnboarding(); });
 		$("#btn-reset").addEventListener("click", async () => {
-			if (!confirm("Clear your Pokedex, photos, badges and walk stats on this device? Your name and friends stay.")) return;
+			if (!confirm("Clear your Wildex, photos, badges and walk stats on this device? Your name and friends stay.")) return;
 			await WN_STORE.resetAll();
-			WN_UI.renderStats(); WN_POKEDEX.render(); WN_MAP.renderZones(zones); renderNearby();
+			WN_UI.renderStats(); WN_WILDEX.render(); WN_MAP.renderZones(zones); renderNearby();
 			WN_PROGRESS.refresh({ celebrate: false });
 			WN_UI.toast("Progress cleared");
 		});
@@ -410,7 +410,7 @@
 			$("#explore-summary").textContent = "No data loaded.";
 			return;
 		}
-		WN_POKEDEX.init(() => new Set(zones.flatMap(z => z.species.map(s => s.key))));
+		WN_WILDEX.init(() => new Set(zones.flatMap(z => z.species.map(s => s.key))));
 		WN_BADGES.init();
 		WN_UI.renderStats();
 		if (S.source === "live") await goLive();

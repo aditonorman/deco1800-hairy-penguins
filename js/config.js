@@ -131,7 +131,7 @@ const WN_CONFIG = {
 		amber: "#e8a94b", leaf: "#8fae4e", coral: "#e0764a", cream: "#f6f2e4",
 		kingfisher: "#5aaee0", galah: "#ec8fb1", jacaranda: "#a48be8", eucalyptus: "#52c3a4", wattle: "#f3cd52"
 	},
-	/* Each animal group gets a "type" colour, Pokedex style. */
+	/* Each animal group gets a "type" colour, Wildex style. */
 	TYPE_COLORS: { mammal: "#ec8fb1", bird: "#5aaee0", reptile: "#a48be8", frog: "#52c3a4" },
 	GROUP_ORDER: ["mammal", "bird", "reptile", "frog"],
 	GROUP_PLURALS: { mammal: "Mammals", bird: "Birds", reptile: "Reptiles", frog: "Frogs" },

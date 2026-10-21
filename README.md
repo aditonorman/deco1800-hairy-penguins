@@ -1,12 +1,12 @@
 # Wild Neighbours
 
-A Pokedex-style wildlife discovery web app for casual hikers around Brisbane, built for DECO1800
+A collect-them-all wildlife discovery web app for casual hikers around Brisbane, built for DECO1800
 (Design Computing Studio 1, UQ) by team **Hairy Penguins**. Piloted on Mt Coot-tha, with cached
 data for greater Brisbane and live data anywhere.
 
 Pick a spot and a radius, see recent wildlife records as shaded **habitat zones** on a map
 (never exact pinpoints, for the animals' safety), walk outside, and unlock species entries in
-your personal Pokedex. Entering a zone always counts, so a walk with no sightings still makes
+your personal Wildex. Entering a zone always counts, so a walk with no sightings still makes
 progress. You can attach your own photo to any unlocked entry as a private keepsake.
 
 Progress earns **XP, ranger levels and 53 badges**, and you can **compare with friends** by
@@ -22,7 +22,7 @@ There is no build step. It is plain HTML, CSS and JavaScript with Leaflet from a
 
 **Option A: open the file.** Double-click `index.html`. The cached data ships as a script
 (`data/cached.js`), so this works straight from disk. Map tiles and Google Fonts need internet;
-zones, the Pokedex and cached thumbnails work offline for the cached areas.
+zones, the Wildex and cached thumbnails work offline for the cached areas.
 
 **Option B: local server** (needed for the Live data mode and recommended for the camera):
 
@@ -53,8 +53,8 @@ localStorage and IndexedDB. There are no accounts and no server.
 | View | What it does |
 |---|---|
 | **Map** | The main screen. Habitat zones are drawn as separate cells: overlapping zones are split down the middle with a thin gap, neighbouring cells get different shades of green, visited zones turn gold, and a coral edge marks a threatened species. A chip on each zone shows how many species live there with a coloured dot per animal type; names appear when you zoom in. A glass stat bar shows species, zones and distance; a status pill says which zone you are in or how far the nearest one is. The floating card shows where you are exploring and a "Likely around here" carousel; tap **Change** for presets across Brisbane, the radius (0.5 to 3 km) and the recency window. Drag the map and tap **Search this area** to explore anywhere. Walking is always on: the find-me button starts GPS and the map follows you. |
-| **Entering a zone** | Every species recorded there joins your Pokedex at *zone visit* tier straight away. Instead of a pop-up, a small alert card slides in at the side ("4 new birds collected") with a safety reminder; nothing opens until you tap it. Tapping the card, or the status pill while you are in the zone, opens the zone sheet with the new species marked **New** and **I spotted it** / **Saw signs** buttons. Cards close themselves after a few seconds unless touched, and can be swiped away. You choose which animals trigger a card (see Settings). |
-| **Pokedex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
+| **Entering a zone** | Every species recorded there joins your Wildex at *zone visit* tier straight away. Instead of a pop-up, a small alert card slides in at the side ("4 new birds collected") with a safety reminder; nothing opens until you tap it. Tapping the card, or the status pill while you are in the zone, opens the zone sheet with the new species marked **New** and **I spotted it** / **Saw signs** buttons. Cards close themselves after a few seconds unless touched, and can be swiped away. You choose which animals trigger a card (see Settings). |
+| **Wildex** | A numbered card for every species, coloured by animal type. Group tiles (mammals, birds, reptiles, frogs) show progress and filter the grid; sort by number, name, recently found or rarest. Locked cards are greyed with a `?`. Unlocked cards show the photo, a tier badge (sighted / signs / zone visit), rarity pips and a camera icon if you added a photo. The entry view shows the ALA photo, rarity, record count, activity, when and where you unlocked it, and your own photo. |
 | **Badges** | Your ranger card (level, rank, XP bar, stats, streak), the three badges you are closest to, all 53 badges by category, and a friends leaderboard. |
 | **Settings** (gear icon) | **Appearance**: Auto, Light or Dark. **Alerts while walking**: turn alert cards on or off, and pick which animal types (mammals, birds, reptiles, frogs) trigger a zone card. Species are collected either way; the zone sheet links straight here. Switch between **Cached** and **Live** data, and the **demo tools**: simulate your position (walk with the on-screen arrows, tap for a 25 m step or hold to keep walking, or use the arrow keys; tapping the map never moves you), jump into the nearest zone, replay the intro, and reset progress. Opening the site with `#demo` on the end of the URL jumps straight to the demo tools. |
 
@@ -158,7 +158,7 @@ to the cache and says so in a dismissible notice.
 - **Precision.** Records with a location precision worse than 1 km, or with no precision value,
   never place a zone. Restricted WildNet records and sensitive species are excluded from zone
   placement as well.
-- **Scope.** Mammals, birds, reptiles and frogs only, so the Pokedex stays about wildlife a hiker
+- **Scope.** Mammals, birds, reptiles and frogs only, so the Wildex stays about wildlife a hiker
   might meet. Insects and fish are filtered out in the fetch script.
 - **Recency and activity.** Each species shows how long ago it was last recorded in that zone
   ("recorded 12 days ago") and an activity hint derived from a 12-month histogram of all its
@@ -219,7 +219,7 @@ js/progress.js          XP, levels, 53 badges, friend cards (pure functions, Nod
 js/ui.js                Tabs, sheets, zone sheet, entry view, celebrations, confetti
 js/map.js               Leaflet map, zone shapes, ripples, "you are here"
 js/walk.js              Walking: GPS or simulated position, zone entry, reports
-js/pokedex.js           Numbered species grid, group tiles, filters and sorting
+js/wildex.js           Numbered species grid, group tiles, filters and sorting
 js/badges.js            Badges tab: ranger card, badges, leaderboard, compare, share
 js/app.js               Bootstrap, explore card, intro, friend links, settings, demo tools
 js/theme.js             Light / dark theme (runs in <head>, sets data-theme)
@@ -246,7 +246,7 @@ header flips it straight away. The choice is saved in `localStorage` (`wn-theme`
 `js/theme.js` runs in `<head>` before the stylesheet and only sets `<html data-theme="...">`.
 Every colour lives in semantic tokens at the top of `css/style.css` (`--bg`, `--surface`, `--fg`,
 `--primary`, `--accent`, ...), with one block per theme, so new styles should use the tokens
-rather than hex values. A Brisbane "bush" palette adds colour Pokedex-style in both themes,
+rather than hex values. A Brisbane "bush" palette adds colour Wildex-style in both themes,
 one per animal type: kingfisher blue `#5aaee0` for birds, galah pink `#ec8fb1` for mammals,
 jacaranda `#a48be8` for reptiles and eucalyptus `#52c3a4` for frogs, with wattle gold `#f3cd52`
 for XP, rarity and gold medals. DM Sans is used for headings and UI, via Google Fonts. All icons

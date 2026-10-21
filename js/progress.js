@@ -23,7 +23,7 @@ const WN_PROGRESS = (function () {
 	/* ---- badge catalogue ------------------------------------------------ */
 
 	const CATEGORIES = [
-		{ id: "collection", name: "Collection", blurb: "Grow your Pokedex." },
+		{ id: "collection", name: "Collection", blurb: "Grow your Wildex." },
 		{ id: "groups", name: "Animal groups", blurb: "Meet every kind of neighbour." },
 		{ id: "evidence", name: "Sightings and signs", blurb: "See them, or find what they left behind." },
 		{ id: "moving", name: "On the move", blurb: "Distance, zones and new corners of Brisbane." },

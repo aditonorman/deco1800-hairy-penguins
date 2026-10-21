@@ -12,11 +12,11 @@
    never cached.
    ========================================================================== */
 
-const CACHE = "wild-neighbours-v7";
+const CACHE = "wild-neighbours-v8";
 const CORE = [
 	"./", "index.html", "css/style.css", "manifest.webmanifest", "data/cached.js",
 	"js/theme.js", "js/config.js", "js/util.js", "js/zones.js", "js/storage.js", "js/data.js", "js/photos.js", "js/icons.js",
-	"js/progress.js", "js/ui.js", "js/map.js", "js/walk.js", "js/pokedex.js", "js/badges.js", "js/app.js",
+	"js/progress.js", "js/ui.js", "js/map.js", "js/walk.js", "js/wildex.js", "js/badges.js", "js/app.js",
 	"images/icon.svg", "images/icon-192.png"
 ];
 const CDN = /^https:\/\/(unpkg\.com\/leaflet@|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;

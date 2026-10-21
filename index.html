@@ -9,7 +9,7 @@
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="apple-mobile-web-app-title" content="Wild Neighbours">
 		<title>Wild Neighbours</title>
-		<meta name="description" content="A Pokedex-style wildlife discovery app for walkers around Brisbane. See habitat zones, walk, unlock species and earn badges. DECO1800 team project.">
+		<meta name="description" content="A collect-them-all wildlife discovery app for walkers around Brisbane. See habitat zones, walk, unlock species and earn badges. DECO1800 team project.">
 		<link rel="manifest" href="manifest.webmanifest">
 		<link rel="icon" href="images/icon.svg" type="image/svg+xml">
 		<link rel="apple-touch-icon" href="images/icon-180.png">
@@ -160,15 +160,15 @@
 			</section>
 
 			<!-- ==========================================================
-			     Pokedex: progress, filters and the species grid
+			     Wildex: progress, filters and the species grid
 			     ========================================================== -->
-			<section id="view-pokedex" class="view view-scroll" aria-labelledby="pokedex-title" hidden>
+			<section id="view-wildex" class="view view-scroll" aria-labelledby="wildex-title" hidden>
 				<div class="page">
 					<header class="page-head">
 						<div>
 							<p class="eyebrow">Your collection</p>
-							<h2 id="pokedex-title">Pokedex</h2>
-							<p class="summary" id="pokedex-progress"></p>
+							<h2 id="wildex-title">Wildex</h2>
+							<p class="summary" id="wildex-progress"></p>
 						</div>
 						<div class="ring-lg" aria-hidden="true">
 							<svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill ring-leaf" id="dex-ring" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
@@ -188,7 +188,7 @@
 						<div class="dex-tools">
 							<label class="field search-field">
 								<span class="visually-hidden">Search species</span>
-								<input type="search" id="pokedex-search" placeholder="Search by name&hellip;" autocomplete="off">
+								<input type="search" id="wildex-search" placeholder="Search by name&hellip;" autocomplete="off">
 							</label>
 							<label class="field sort-field">
 								<span class="visually-hidden">Sort</span>
@@ -201,7 +201,7 @@
 							</label>
 						</div>
 					</div>
-					<ul class="pokedex-grid" id="pokedex-grid" aria-live="polite"></ul>
+					<ul class="wildex-grid" id="wildex-grid" aria-live="polite"></ul>
 				</div>
 			</section>
 
@@ -227,7 +227,7 @@
 		<nav class="tabbar" id="tabbar" aria-label="Main">
 			<span class="tab-indicator" aria-hidden="true"></span>
 			<button type="button" data-tab="map" class="is-active" aria-current="page"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span></button>
-			<button type="button" data-tab="pokedex"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h5.5A2.5 2.5 0 0 1 12 7v13a2 2 0 0 0-2-2H4z"/><path d="M20 4.5h-5.5A2.5 2.5 0 0 0 12 7v13a2 2 0 0 1 2-2h6z"/></svg><span>Pokedex</span></button>
+			<button type="button" data-tab="wildex"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h5.5A2.5 2.5 0 0 1 12 7v13a2 2 0 0 0-2-2H4z"/><path d="M20 4.5h-5.5A2.5 2.5 0 0 0 12 7v13a2 2 0 0 1 2-2h6z"/></svg><span>Wildex</span></button>
 			<button type="button" data-tab="badges"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15" r="5.5"/><path d="M8.6 10.6 6 3h4l2 4.2L14 3h4l-2.6 7.6"/><path d="M12 12.6l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z" fill="currentColor" stroke="none"/></svg><span>Badges</span><i class="tab-dot" id="badges-dot" hidden></i></button>
 		</nav>
 
@@ -404,7 +404,7 @@
 					</div>
 					<p class="eyebrow">How it works</p>
 					<h2>Walk in to unlock</h2>
-					<p>Step into a zone and every species recorded there joins your Pokedex. Spot one, or its tracks and calls, to level it up.</p>
+					<p>Step into a zone and every species recorded there joins your Wildex. Spot one, or its tracks and calls, to level it up.</p>
 					<p class="ob-safety"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5s7.5-3.3 7.5-9.8V5.2L12 2.5 4.5 5.2v6.5c0 6.5 7.5 9.8 7.5 9.8z"/><path d="M8.6 11.8l2.3 2.3 4.5-4.6"/></svg>Stay on the trail, keep your distance, and never feed or call animals.</p>
 				</section>
 				<section class="ob-slide">
@@ -451,7 +451,7 @@
 		<script src="js/ui.js"></script>
 		<script src="js/map.js"></script>
 		<script src="js/walk.js"></script>
-		<script src="js/pokedex.js"></script>
+		<script src="js/wildex.js"></script>
 		<script src="js/badges.js"></script>
 		<script src="js/app.js"></script>
 	</body>

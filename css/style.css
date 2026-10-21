@@ -2,7 +2,7 @@
    Wild Neighbours - stylesheet
    --------------------------------------------------------------------------
    One file, mobile-first, built like a native app shell: fixed header, a
-   full-bleed map, scrolling Pokedex and Badges pages, and a floating tab bar.
+   full-bleed map, scrolling Wildex and Badges pages, and a floating tab bar.
 
    Colour: two themes share one set of semantic tokens (see "tokens").
      light = the Figma file (mint page, white cards, forest-green actions,
@@ -13,7 +13,7 @@
      jacaranda       = reptiles  eucalyptus = frogs
      wattle gold     = rarity, XP and gold medals
    Sections: tokens / base / splash / header / notice / shell / map / controls /
-   badges+chips / pokedex / badges page / sheets / entry / celebrations /
+   badges+chips / wildex / badges page / sheets / entry / celebrations /
    banner+toast / tab bar / onboarding / desktop / reduced motion
    ========================================================================== */
 
@@ -697,7 +697,7 @@ output { color: var(--primary-ink); font-weight: 700; text-transform: none; lett
 img.fade-img { opacity: 0; transition: opacity 0.45s ease; }
 img.fade-img.is-loaded { opacity: 1; }
 
-/* ---------- pokedex -------------------------------------------------------------------------- */
+/* ---------- wildex -------------------------------------------------------------------------- */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .page-head h2 { font-size: 2rem; font-weight: 800; margin-bottom: 2px; }
 .ring-lg { position: relative; width: 78px; height: 78px; flex: none; display: grid; place-items: center; }
@@ -731,7 +731,7 @@ img.fade-img.is-loaded { opacity: 1; }
   display: flex; flex-direction: column; gap: 10px;
 }
 .dex-tools { display: grid; grid-template-columns: 1fr 140px; gap: 8px; }
-.pokedex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.wildex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .card {
   position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0; text-align: left;
   border-radius: 22px; overflow: hidden; border: 1px solid var(--card-border);
@@ -1237,7 +1237,7 @@ img.fade-img.is-loaded { opacity: 1; }
 
 /* ---------- small phones ------------------------------------------------------------------------------------ */
 @media (max-width: 380px) {
-  .pokedex-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .wildex-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .statbar-item { gap: 6px; padding: 0 5px; }
   .statbar-ico { width: 26px; height: 26px; }
   .stat-tiles { gap: 6px; }
@@ -1271,7 +1271,7 @@ img.fade-img.is-loaded { opacity: 1; }
   .group-tile { min-width: 150px; }
   .dex-toolbar { margin: 12px -28px 14px; padding: 12px 28px; flex-direction: row; align-items: center; justify-content: space-between; }
   .dex-tools { grid-template-columns: 260px 150px; }
-  .pokedex-grid { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 16px; }
+  .wildex-grid { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 16px; }
   .badges-layout { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 28px; align-items: start; }
   .badges-side { display: block; grid-column: 2; grid-row: 1; position: sticky; top: 0; }
   .badges-main { display: block; grid-column: 1; grid-row: 1; }

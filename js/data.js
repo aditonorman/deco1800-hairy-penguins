@@ -64,7 +64,7 @@ const WN_DATA = (function () {
 	}
 
 	/**
-	 * Pokedex numbers: mammals, birds, reptiles, frogs, each A to Z. Sorted on a
+	 * Wildex numbers: mammals, birds, reptiles, frogs, each A to Z. Sorted on a
 	 * copy, because sighting rows point at species by array position.
 	 */
 	function numberSpecies() {

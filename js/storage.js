@@ -1,7 +1,7 @@
 /* ==========================================================================
    Wild Neighbours - on-device storage
    --------------------------------------------------------------------------
-   * localStorage  : the Pokedex collection, walk stats, settings, profile,
+   * localStorage  : the Wildex collection, walk stats, settings, profile,
                      earned badges and friends' cards (small JSON)
    * IndexedDB     : personal photos (base64 data URLs can be a few hundred KB
                      each, which would blow the ~5 MB localStorage cap fast)
@@ -101,7 +101,7 @@ const WN_STORE = (function () {
 		return false;
 	}
 
-	/* ---- Pokedex entries ------------------------------------------------ */
+	/* ---- Wildex entries ------------------------------------------------ */
 
 	function getEntry(key) { return state.entries[key] || null; }
 	function allEntries() { return state.entries; }

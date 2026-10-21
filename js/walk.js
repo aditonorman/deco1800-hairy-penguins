@@ -317,7 +317,7 @@ const WN_WALK = (function () {
 		const place = state.centre ? state.centre.place : null;
 		const firstVisit = WN_STORE.visitZone(zone, place);
 
-		// Collecting: every species recorded here joins the Pokedex at zone-visit tier.
+		// Collecting: every species recorded here joins the Wildex at zone-visit tier.
 		const unlocked = [];
 		zone.species.forEach(s => {
 			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place });
