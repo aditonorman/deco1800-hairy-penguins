@@ -47,7 +47,6 @@ const WN_STORE = (function () {
 				radius: WN_CONFIG.RADIUS_DEFAULT,
 				window: WN_CONFIG.WINDOW_DEFAULT_MONTHS,
 				simulate: false,
-				cardCompact: null,          // null = decide by screen height
 				alertsOn: true,                                       // alert cards while walking
 				alertGroups: ["mammal", "bird", "reptile", "frog"]    // animal groups that trigger zone alerts
 			},
@@ -181,6 +180,12 @@ const WN_STORE = (function () {
 	function setProfile(name, value) { state.profile[name] = value; save(); }
 
 	function badges() { return state.badges; }
+	/** Drop earned badges that are no longer in the catalogue. */
+	function pruneBadges(validIds) {
+		let changed = false;
+		Object.keys(state.badges).forEach(id => { if (!validIds.has(id)) { delete state.badges[id]; changed = true; } });
+		if (changed) save();
+	}
 	/** Record a newly earned badge. Returns false if it was already earned. */
 	function awardBadge(id) {
 		if (state.badges[id]) return false;
@@ -276,7 +281,7 @@ const WN_STORE = (function () {
 		getEntry, allEntries, unlockedCount, unlock, setPhotoFlag,
 		stats, visitZone, addDistance, startWalk, markActiveDay, today,
 		settings, setSetting,
-		profile, setProfile, badges, awardBadge, markBadgesSeen, unseenBadgeCount,
+		profile, setProfile, badges, pruneBadges, awardBadge, markBadgesSeen, unseenBadgeCount,
 		friends, saveFriend, removeFriend,
 		resetAll, photos
 	};

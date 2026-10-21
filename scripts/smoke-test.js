@@ -152,16 +152,55 @@ function section(name) { console.log("\n" + name); }
   check("visible chips never overlap", await chipsClear());
   check("chips show animal-type dots", (await page.$$eval(".zone-chip .zc-dots i", els => els.length)) > 0);
   check("no safety banner element any more", (await page.$("#safety-banner")) === null);
+  // map key: visible at first glance, full key one tap away
+  check("map key visible on the map screen", await isShown(".map-key") && (await page.$$eval(".map-key .mk-item", els => els.length)) === 4);
+  check("no rarity anywhere on screen", await page.evaluate(() => !/rarity|rarest|rare find/i.test(document.body.innerText)));
+  await page.click("#btn-map-key");
+  check("Key opens the full map key", await waitShown("#key-sheet"));
+  check("full key explains zones, labels, animal types and you", await page.$eval("#key-sheet", el =>
+    ["Habitat zone", "Visited", "Threatened", "The zone you are in", "Zone label", "Search area", "You"].every(t => el.textContent.includes(t)) &&
+    el.querySelectorAll("#key-types .key-type").length === 4 && el.querySelectorAll("#key-chip-sample .zc-ico").length === 3));
+  await shot("02b-map-key");
+  await page.click("#key-sheet [data-close]");
+  check("map key closes", await waitHidden("#key-sheet"));
   check("likely-around-here carousel filled", (await page.$$eval("#nearby-row .nearby-item", els => els.length)) > 3);
-  check("map credit visible", /OpenStreetMap|Esri/.test(await page.$eval("#map-credit", el => el.textContent)));
+  check("map credit in the card and in the map key", await page.$$eval(".js-map-credit", els => els.length === 2 && els.every(el => /OpenStreetMap|Esri/.test(el.textContent))));
   if (server) check("GPS started on its own (permission granted earlier)", (await page.$(".you-marker")) !== null && /away|from/.test(await page.$eval("#hud-zone", el => el.textContent)), await page.$eval("#hud-zone", el => el.textContent));
   await shot("02-map");
+  // phones: the explore card is a bottom sheet that starts as a slim bar
+  const cardOpen = () => page.$eval("#explore-panel", el => !el.classList.contains("is-compact"));
+  const cardHeight = () => page.$eval("#explore-panel", el => el.getBoundingClientRect().height);
+  check("explore card starts as a slim bar", !(await cardOpen()) && (await cardHeight()) < 130, Math.round(await cardHeight()) + " px");
+  check("slim bar shows the place, counts and the map key", await page.evaluate(() => {
+    const vis = (s) => { const el = document.querySelector(s); return el && el.getClientRects().length > 0 && getComputedStyle(el).display !== "none"; };
+    return vis("#explore-title") && vis("#explore-mini") && /zones/.test(document.getElementById("explore-mini").textContent) && vis(".map-key") && !vis(".nearby");
+  }));
+  await page.click("#card-expand"); await sleep(400);
+  check("arrow button opens the card", await cardOpen());
+  await page.click("#card-expand"); await sleep(400);
+  check("arrow button closes it again", !(await cardOpen()));
+  await page.click("#explore-title"); await sleep(400);
+  check("tapping the slim bar opens it", await cardOpen());
+  const hb = await (await page.$("#card-handle")).boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2 + 90, { steps: 6 }); await page.mouse.up(); await sleep(450);
+  check("swiping down closes it", !(await cardOpen()));
+  const hb2 = await (await page.$("#card-handle")).boundingBox();
+  await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + hb2.height / 2); await page.mouse.down();
+  await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + hb2.height / 2 - 90, { steps: 6 }); await page.mouse.up(); await sleep(450);
+  check("swiping up opens it", await cardOpen());
   await page.click("#panel-toggle"); await sleep(300);
   check("Change opens the controls", await isShown("#explore-controls"));
-  await page.click("#panel-toggle"); await sleep(200);
-  await page.click("#card-handle"); await sleep(250);
-  check("handle collapses the card", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));
-  await page.click("#card-handle"); await sleep(250);
+  const mapSpot = await page.evaluate(() => {   // a point where the bare map is on top
+    const r = document.getElementById("map").getBoundingClientRect();
+    for (let y = r.top + 150; y < r.bottom - 100; y += 17) for (let x = r.left + 20; x < r.right - 70; x += 23) {
+      const el = document.elementFromPoint(x, y);
+      if (el && (el.classList.contains("leaflet-tile") || el.classList.contains("leaflet-container"))) return { x, y };
+    }
+    return null;
+  });
+  await page.mouse.click(mapSpot.x, mapSpot.y); await sleep(450);
+  check("tapping the map closes the card and its controls", !(await cardOpen()) && !(await isShown("#explore-controls")));
 
   // tap a zone you are not in
   if (server) { await page.click("#btn-follow"); await page.evaluate(() => WN_MAP.fitCircle()); await sleep(900); }
@@ -253,6 +292,12 @@ function section(name) { console.log("\n" + name); }
   const d0 = (await store()).distance;
   for (let i = 0; i < 4; i++) { await page.click('#dpad [data-dir="n"]'); await sleep(70); }
   check("arrow steps add distance", (await store()).distance - d0 >= 99, Math.round((await store()).distance - d0) + " m");
+  // leaving demo: find-me goes back to your real location
+  await page.click("#btn-locate"); await sleep(server ? 1500 : 500);
+  check("find-me leaves demo mode", !(await isShown("#dpad")) && await page.evaluate(() => !WN_STORE.settings().simulate && !WN_WALK.isSimulating() && !document.getElementById("sim-toggle").checked));
+  if (server) check("and finds your real location", await page.evaluate(() => { const p = WN_WALK.position(); return !!p && Math.abs(p.lat + 27.4747) < 1e-4 && Math.abs(p.lng - 152.93) < 1e-4; }), JSON.stringify(await page.evaluate(() => WN_WALK.position())));
+  await page.evaluate(() => WN_WALK.setSimulate(true, true)); await sleep(300);
+  check("settings switch follows demo mode", await page.$eval("#sim-toggle", el => el.checked) && await isShown("#dpad"));
   await settle();   // distance badges may pop up
 
   // demo mode: the arrows are the only way to move
@@ -344,9 +389,26 @@ function section(name) { console.log("\n" + name); }
   section("wildex");
   await page.click('.tabbar button[data-tab="wildex"]');
   await sleep(700);
+  // phones: cards are drawn in batches, never all 708 at once
+  const firstBatch = await page.$$eval(".card", els => els.length);
+  check("first batch only (not all 708 at once)", firstBatch >= 48 && firstBatch < 200, firstBatch + " cards");
+  check("no live blur inside cards", await page.evaluate(() => [...document.querySelectorAll("#wildex-grid *")].every(el => { const cs = getComputedStyle(el); return (cs.backdropFilter || "none") === "none" && (cs.webkitBackdropFilter || "none") === "none"; })));
+  await sleep(1500);
+  const shimmers = await page.evaluate(() => document.getAnimations().filter(a => a.animationName === "shimmer" && a.playState === "running").length);
+  check("loading shimmer stops once photos are in", shimmers < firstBatch, shimmers + " still shimmering of " + firstBatch);
+  for (let i = 0; i < 40; i++) { await page.evaluate(() => { const v = document.getElementById("view-wildex"); v.scrollTop = v.scrollHeight; }); await sleep(120); }
+  check("scrolling loads every card", (await page.$$eval(".card", els => els.length)) === 708, (await page.$$eval(".card", els => els.length)) + " cards");
+  await page.evaluate(() => { document.getElementById("view-wildex").scrollTop = 0; });
   check("cards rendered", (await page.$$eval(".card", els => els.length)) > 500);
   check("locked cards hide the name", await page.$eval(".card.is-locked .card-name", el => el.textContent === "???"));
   check("cards are numbered", /No\. \d{3}/.test(await page.$eval(".card .card-no", el => el.textContent)));
+  // off screen the grid is dropped, so a long scroll is not redrawn behind the map on every zone collected
+  await page.click('.tabbar button[data-tab="map"]'); await sleep(300);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent("wn:collection", { detail: { quiet: true } }))); await sleep(300);
+  check("leaving the Wildex drops its cards", (await page.$$eval(".card", els => els.length)) === 0);
+  await page.click('.tabbar button[data-tab="wildex"]'); await sleep(700);
+  const redrawn = await page.$$eval(".card", els => els.length);
+  check("coming back draws the first batch again", redrawn >= 48 && redrawn < 200, redrawn + " cards");
   await page.click('#group-filter [data-group="bird"]'); await sleep(400);
   check("bird tile filters to birds", await page.$$eval(".card", els => els.length > 0 && els.every(c => c.classList.contains("t-bird"))));
   await page.click('#group-filter [data-group="all"]'); await sleep(300);
@@ -357,7 +419,7 @@ function section(name) { console.log("\n" + name); }
   await shot("08-wildex");
   await page.$eval(".card.is-unlocked", el => el.click());
   check("entry opens", await waitShown("#entry-modal"));
-  check("entry shows number, tiles and unlock details", await page.$eval("#entry-body", el => /No\. \d{3}/.test(el.textContent) && /Rarity/.test(el.textContent) && /Unlocked/.test(el.textContent)));
+  check("entry shows number, tiles and unlock details", await page.$eval("#entry-body", el => /No\. \d{3}/.test(el.textContent) && /Records/.test(el.textContent) && !/Rarity/.test(el.textContent) && /Unlocked/.test(el.textContent)));
   const sample = path.join(PROJECT, "data/img", (await page.evaluate(() => Object.keys(window.WN_CACHED.images).find(k => window.WN_CACHED.images[k].local))) + ".jpg");
   await sleep(500);
   const [chooser] = await Promise.all([page.waitForFileChooser({ timeout: 5000 }), page.$eval('#entry-body [data-act="photo"]', el => el.click())]);
@@ -379,7 +441,7 @@ function section(name) { console.log("\n" + name); }
   await sleep(900);
   const sb = await store();
   check("ranger card shows the level", Number(await page.$eval(".ranger-level-text b", el => el.textContent)) === sb.level);
-  check("all 53 badges listed", (await page.$$eval(".badge-tile", els => els.length)) === 53);
+  check("all 52 badges listed", (await page.$$eval(".badge-tile", els => els.length)) === 52);
   check("earned count matches", (await page.$$eval(".badge-tile.is-earned", els => els.length)) === sb.badges.length, sb.badges.length);
   check("next-up goals shown", (await page.$$eval(".next-card", els => els.length)) === 3);
   check("secret badges stay secret", (await page.$$eval(".badge-tile", els => els.filter(e => /Secret badge/.test(e.textContent)).length)) >= 1);
@@ -435,6 +497,11 @@ function section(name) { console.log("\n" + name); }
     const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!r; });
     check("service worker registered (offline app shell)", sw);
   }
+  // every app file is loaded with the same ?v= version the service worker uses
+  const html = fs.readFileSync(path.join(PROJECT, "index.html"), "utf8");
+  const swVersion = (fs.readFileSync(path.join(PROJECT, "sw.js"), "utf8").match(/^const VERSION = "([^"]+)"/m) || [])[1];
+  const local = [...html.matchAll(/(?:src|href)="((?:js|css|data)\/[^"]+)"/g)].map(m => m[1]).filter(u => !u.startsWith("data/img/"));   // photos never change
+  check("every app file carries the service worker's version", local.length >= 17 && local.every(u => u.endsWith("?v=" + swVersion)), local.length + " files, version " + swVersion);
 
   // ---- 7b. light / dark theme ------------------------------------------------------
   section("light / dark");
@@ -456,10 +523,10 @@ function section(name) { console.log("\n" + name); }
 
   // ---- 8. layouts ------------------------------------------------------------------
   section("layouts");
-  await page.evaluate(() => WN_STORE.setSetting("cardCompact", null));   // as for someone who never folded the card
   await page.setViewport({ width: 375, height: 667, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.goto(base, { waitUntil: "networkidle2" }); await sleep(1200);
   check("small phone: explore card starts folded", await page.$eval("#explore-panel", el => el.classList.contains("is-compact")));
+  check("small phone: map key still visible with the card folded", await isShown(".map-key"));
   await page.evaluate(() => WN_WALK.jumpToNearestZone());
   await waitShown(".notif", 3000);
   check("small phone: arrows stay clear of cards and panels", await onTop("#dpad button"), "4 arrows");

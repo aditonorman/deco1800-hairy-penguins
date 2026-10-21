@@ -85,7 +85,6 @@ const WN_PROGRESS = (function () {
 		{ id: "icon-5", cat: "conservation", name: "Aussie Icons", desc: "Find 5 of Brisbane's Big Ten: koala, kookaburra, echidna, platypus, water dragon, lace monitor, eastern grey kangaroo, tawny frogmouth, green tree frog and carpet python.", icon: "crown", rarity: "gold", metric: "icons", goal: 5 },
 		{ id: "icon-10", cat: "conservation", name: "Brisbane Big Ten", desc: "Find all ten of Brisbane's iconic animals.", icon: "crown", rarity: "legendary", metric: "icons", goal: 10 },
 		{ id: "koala", cat: "conservation", name: "Koala Moment", desc: "Log a koala you spotted. Quietly, and from a distance.", icon: "heart", rarity: "gold", metric: "koalaSighted", goal: 1 },
-		{ id: "rare-1", cat: "conservation", name: "Rare Find", desc: "Unlock a species that is very rare in our records.", icon: "gem", rarity: "gold", metric: "veryRare", goal: 1 },
 
 		// Habits and journal
 		{ id: "streak-3", cat: "habits", name: "On a Roll", desc: "Explore on 3 days in a row.", icon: "flame", rarity: "silver", metric: "bestStreak", goal: 3 },
@@ -162,7 +161,7 @@ const WN_PROGRESS = (function () {
 		const out = {
 			species: 0, sighted: 0, signs: 0,
 			mammals: 0, birds: 0, reptiles: 0, frogs: 0, groupsCovered: 0,
-			threatened: 0, icons: 0, koalaSighted: 0, veryRare: 0, photos: 0,
+			threatened: 0, icons: 0, koalaSighted: 0, photos: 0,
 			zones: (st.zonesVisited || []).length, areas: 0,
 			distanceM: st.distanceM || 0, distanceKm: 0,
 			days: (st.days || []).length, bestStreak: 0, currentStreak: 0,
@@ -185,7 +184,6 @@ const WN_PROGRESS = (function () {
 				else if (sp.group === "reptile") out.reptiles++;
 				else if (sp.group === "frog") out.frogs++;
 				if (sp.threatened) out.threatened++;
-				if (sp.rarity === "veryrare") out.veryRare++;
 			}
 			[e.unlockedAt, e.tierAt].forEach(iso => {
 				if (!iso) return;
@@ -239,8 +237,6 @@ const WN_PROGRESS = (function () {
 		Object.keys(input.entries || {}).forEach(key => {
 			const e = input.entries[key];
 			xp += X.tier[e.tier] || 0;
-			const sp = speciesInfo(input.speciesIndex, key);
-			if (sp && sp.rarity) xp += X.rarity[sp.rarity] || 0;
 		});
 		xp += stats.zones * X.zone;
 		xp += Math.floor(stats.distanceM / 100) * X.per100m;
@@ -323,7 +319,9 @@ const WN_PROGRESS = (function () {
 	function snapshot() {
 		const inp = input();
 		const stats = computeStats(inp);
-		const earned = WN_STORE.badges();
+		// only badges that still exist (Rare Find was retired with species rarity)
+		const earned = {};
+		Object.entries(WN_STORE.badges()).forEach(([id, b]) => { if (BY_ID.has(id)) earned[id] = b; });
 		const evaluations = evaluate(stats);
 		const xp = xpFor(inp, stats, Object.keys(earned));
 		return { stats, earned, evaluations, xp, level: levelFor(xp) };
@@ -337,6 +335,7 @@ const WN_PROGRESS = (function () {
 	function refresh(opts) {
 		const celebrate = !(opts && opts.celebrate === false);
 		const quiet = Boolean(opts && opts.quiet);
+		WN_STORE.pruneBadges(BY_ID);
 		let snap = snapshot();
 		const fresh = snap.evaluations.filter(ev => ev.eligible && !snap.earned[ev.badge.id]).map(ev => ev.badge);
 		fresh.forEach(b => WN_STORE.awardBadge(b.id));
@@ -344,6 +343,8 @@ const WN_PROGRESS = (function () {
 
 		const profile = WN_STORE.profile();
 		let levelUp = null;
+		// XP rules can change (rarity bonus removed): never stay above the real level
+		if (snap.level.level < (profile.lastLevel || 1)) WN_STORE.setProfile("lastLevel", snap.level.level);
 		if (snap.level.level > (profile.lastLevel || 1)) {
 			levelUp = { level: snap.level.level, rank: snap.level.rank, rankChanged: rankFor(profile.lastLevel || 1) !== snap.level.rank };
 			WN_STORE.setProfile("lastLevel", snap.level.level);

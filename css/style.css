@@ -11,7 +11,7 @@
    A Brisbane "bush" set is used for animal types and rewards in both:
      kingfisher blue = birds     galah pink = mammals
      jacaranda       = reptiles  eucalyptus = frogs
-     wattle gold     = rarity, XP and gold medals
+     wattle gold     = XP and gold medals
    Sections: tokens / base / splash / header / notice / shell / map / controls /
    badges+chips / wildex / badges page / sheets / entry / celebrations /
    banner+toast / tab bar / onboarding / desktop / reduced motion
@@ -572,7 +572,32 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 .explore-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .explore-text { min-width: 0; }
 .explore-card h2 { font-size: 1.36rem; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.explore-card.is-compact .summary, .explore-card.is-compact .nearby { display: none; }
+.explore-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.card-expand { width: 36px; height: 36px; }
+.card-expand .icon { transition: transform 0.3s var(--spring); }
+.explore-card:not(.is-compact) .card-expand .icon { transform: rotate(180deg); }
+.explore-mini { display: none; font-size: 0.78rem; color: var(--fg-60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.explore-mini strong { color: var(--fg); font-weight: 700; }
+
+/* Phones: the card is a bottom sheet. Collapsed (default) it is a slim bar with the place,
+   a one-line count, Change, an expand button and the map key; expanded it shows the summary,
+   "Likely around here", the controls and the map credit. Swipe or tap to switch. */
+@media (max-width: 899px) {
+  .explore-card { padding: 0 14px 10px; max-height: min(60%, calc(100% - 150px - var(--nav-space))); transition: max-height 0.3s var(--ease); }
+  .card-handle { height: 18px; margin-bottom: 0; touch-action: none; }
+  .explore-head { touch-action: none; }
+  .explore-card.is-compact { overflow: hidden; cursor: pointer; }
+  .explore-card.is-compact .eyebrow,
+  .explore-card.is-compact .summary,
+  .explore-card.is-compact .nearby,
+  .explore-card.is-compact .explore-controls,
+  .explore-card.is-compact > .map-credit { display: none !important; }
+  .explore-card.is-compact .explore-head { align-items: center; }
+  .explore-card.is-compact h2 { font-size: 1.12rem; margin: 0; }
+  .explore-card.is-compact .explore-mini { display: block; }
+  .explore-card.is-compact .map-key { margin-top: 8px; padding-top: 8px; }
+  .explore-card.is-dragging { transition: none; }
+}
 .live-tag { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--on-accent); background: var(--eucalyptus); padding: 2px 7px; border-radius: 999px; }
 .nearby { margin-top: 12px; }
 .nearby-title { display: flex; justify-content: space-between; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-60); margin-bottom: 8px; }
@@ -592,13 +617,46 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .explore-controls { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; animation: rise 0.3s var(--ease); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.74rem; color: var(--fg-60); }
-.legend-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-.legend-dot.zone { border-radius: 3px; background: linear-gradient(90deg, rgba(143, 174, 78, 0.8) 50%, rgba(92, 158, 87, 0.8) 50%); border: 2px solid #4f6a22; }
-.legend-dot.threat { border-radius: 3px; background: rgba(143, 174, 78, 0.55); border: 2px solid var(--coral); }
-.legend-dot.visited { border-radius: 3px; background: rgba(243, 205, 82, 0.6); border: 2px solid #b48a12; }
-.legend-dot.types { background: conic-gradient(var(--galah) 0 25%, var(--kingfisher) 0 50%, var(--jacaranda) 0 75%, var(--eucalyptus) 0); }
-.legend-dot.you { background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+/* map key: one compact row in the explore card (always visible), full key in a sheet.
+   Swatch colours mirror WN_CONFIG.ZONE_SHADES / PALETTE, which the map uses in both themes. */
+.map-key { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 0.74rem; font-weight: 600; color: var(--fg-60); }
+.mk-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mk-swatch { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 4px; }
+.mk-swatch.zone { background: linear-gradient(90deg, rgba(143, 174, 78, 0.75) 50%, rgba(92, 158, 87, 0.75) 50%); border: 2px solid #4f6a22; }
+.mk-swatch.visited { background: rgba(243, 205, 82, 0.7); border: 2px solid #b48a12; }
+.mk-swatch.threat { background: rgba(143, 174, 78, 0.55); border: 2.5px solid #e0764a; }
+.mk-swatch.here { background: rgba(143, 174, 78, 0.7); border: 3px solid #e8a94b; }
+.mk-swatch.area { background: none; border: 2px dashed #e8a94b; border-radius: 50%; }
+.mk-swatch.you { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(0, 0, 0, 0.3); }
+.mk-swatch.lg { width: 30px; height: 30px; border-radius: 8px; }
+.mk-swatch.lg.area { border-radius: 50%; border-width: 2.5px; }
+.mk-swatch.lg.you { width: 20px; height: 20px; border-width: 3px; }
+.mk-more { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--btn-soft-border); background: var(--btn-soft); color: var(--fg); font-size: 0.74rem; font-weight: 700; }
+.mk-more:hover { background: var(--btn-soft-hover); }
+.mk-more .icon { width: 14px; height: 14px; }
+/* narrow phones: keep the key on one line (the button becomes an "i" circle) */
+@media (max-width: 400px) {
+  .map-key { gap: 6px 10px; font-size: 0.72rem; }
+  .mk-more { width: 30px; padding: 0; justify-content: center; }
+  .mk-more-text { display: none; }
+}
+/* short phones: slimmer demo arrows so the explore card never covers them */
+@media (max-height: 700px) and (max-width: 899px) {
+  .dpad { grid-auto-rows: 36px; gap: 3px; }
+}
+.key-list { display: grid; gap: 4px; }
+.key-list li { display: flex; align-items: center; gap: 14px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.key-list li:last-child { border-bottom: 0; }
+.key-visual { flex: none; width: 96px; display: grid; place-items: center; }
+.key-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.key-text b { font-size: 0.92rem; }
+.key-text small { font-size: 0.8rem; color: var(--fg-60); line-height: 1.4; }
+.key-visual .zc-pill { box-shadow: none; }
+.key-types-row { flex-wrap: wrap; }
+.key-types { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.key-type { display: inline-flex; align-items: center; gap: 7px; font-size: 0.84rem; font-weight: 600; }
+.key-type .zc-ico { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--type); }
+.key-type .zc-ico .icon { width: 15px; height: 15px; }
 
 /* ---------- form controls ------------------------------------------------------------------ */
 .field { display: block; min-width: 0; }
@@ -662,7 +720,7 @@ output { color: var(--primary-ink); font-weight: 700; text-transform: none; lett
 .switch input:checked + .switch-track::after { transform: translateX(20px); background: #fff; }
 .switch input:focus-visible + .switch-track { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-/* ---------- small badges: tier, status, type, rarity ---------------------------------------- */
+/* ---------- small badges: tier, status, type ---------------------------------------- */
 .tier {
   display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 9px;
   font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; border: 1px solid transparent; white-space: nowrap;
@@ -686,10 +744,6 @@ output { color: var(--primary-ink); font-weight: 700; text-transform: none; lett
   background: color-mix(in srgb, var(--type) 15%, transparent); border-color: color-mix(in srgb, var(--type) 45%, transparent);
 }
 .type-chip .icon { width: 12px; height: 12px; }
-.pips { display: inline-flex; gap: 3px; align-items: center; }
-.pips i { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-15); }
-.pips i.on { background: var(--wattle); box-shadow: 0 0 6px var(--gold-glow); }
-.rarity-label { font-size: 0.68rem; font-weight: 700; color: var(--gold-ink); }
 
 /* species image placeholder (no reference photo) */
 .group-icon { position: absolute; inset: 0; display: grid; place-items: center; color: var(--type, var(--fg-40)); opacity: 0.85; pointer-events: none; background: radial-gradient(circle, var(--fg-08), transparent 70%); }
@@ -749,10 +803,15 @@ img.fade-img.is-loaded { opacity: 1; }
   background: linear-gradient(110deg, var(--shimmer-a) 30%, var(--shimmer-b) 50%, var(--shimmer-a) 70%); background-size: 200% 100%; animation: shimmer 1.6s linear infinite; }
 .card-img img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.45s ease, transform 0.5s var(--ease); }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-.card-no { position: absolute; left: 7px; bottom: 7px; z-index: 2; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(18, 28, 22, 0.6); padding: 3px 7px; border-radius: 999px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* Performance on phones: no live (backdrop) blur inside cards, since hundreds of them ran
+   phones out of graphics memory, and the loading shimmer stops once the photo is in. */
+.card .tier-1 { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20, 30, 24, 0.8); }
+.card-img:has(img.is-loaded), .card-img:has(.group-icon) { animation: none; }
+.dex-more { grid-column: 1 / -1; height: 1px; }
+.card-no { position: absolute; left: 7px; bottom: 7px; z-index: 2; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(18, 28, 22, 0.72); padding: 3px 7px; border-radius: 999px;  }
 .card .tier { position: absolute; top: 7px; left: 7px; z-index: 2; }
 .card-icons { position: absolute; top: 7px; right: 7px; display: flex; gap: 4px; z-index: 2; }
-.card-icon { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; color: var(--wattle); background: rgba(18, 28, 22, 0.6); border: 1px solid rgba(255, 255, 255, 0.16); backdrop-filter: blur(6px); }
+.card-icon { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; color: var(--wattle); background: rgba(18, 28, 22, 0.72); border: 1px solid rgba(255, 255, 255, 0.16); }
 .card-icon .icon { width: 13px; height: 13px; }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
 .card-name { font-family: var(--font-head); font-weight: 700; font-size: 1rem; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -1260,9 +1319,7 @@ img.fade-img.is-loaded { opacity: 1; }
   .dpad .centre { display: grid; grid-column: 2; grid-row: 2; }
   .dpad .right { grid-column: 3; grid-row: 2; } .dpad .down { grid-column: 2; grid-row: 3; }
   .explore-card { left: 18px; right: auto; top: 18px; bottom: auto; width: 380px; max-height: calc(100% - 36px - var(--nav-space)); }
-  .card-handle { display: none; }
-  .explore-card.is-compact .summary, .explore-card.is-compact .nearby { display: block; }
-  .explore-card.is-compact .nearby { display: block; }
+  .card-handle, .card-expand { display: none; }
   .map-top { left: 416px; right: 80px; top: 18px; }
   .statbar { align-self: center; width: min(520px, 100%); }
   .map-side { top: 18px; right: 18px; }

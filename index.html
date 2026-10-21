@@ -15,7 +15,7 @@
 		<link rel="apple-touch-icon" href="images/icon-180.png">
 
 		<!-- Light / dark theme: runs before the stylesheet so the first paint is already in the right colours -->
-		<script src="js/theme.js"></script>
+		<script src="js/theme.js?v=dev"></script>
 
 		<!-- Fonts: DM Sans for headings and UI (matches the Figma screens) -->
 		<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +25,7 @@
 		<!-- Leaflet (map library) from CDN -->
 		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
-		<link rel="stylesheet" href="css/style.css">
+		<link rel="stylesheet" href="css/style.css?v=dev">
 	</head>
 	<body class="is-loading">
 		<!-- Shared SVG gradients (used by progress rings) -->
@@ -113,14 +113,27 @@
 				</div>
 
 				<aside class="explore-card" id="explore-panel" aria-label="Where you are exploring">
-					<button type="button" class="card-handle" id="card-handle" aria-label="Collapse" aria-expanded="true"><span></span></button>
+					<button type="button" class="card-handle" id="card-handle" aria-label="Show more" aria-expanded="false" aria-controls="explore-panel"><span></span></button>
 					<div class="explore-head">
 						<div class="explore-text">
 							<p class="eyebrow"><span id="explore-eyebrow">Exploring</span><span class="live-tag" id="live-tag" hidden>Live</span></p>
 							<h2 id="explore-title">Mt Coot-tha</h2>
+							<p class="explore-mini" id="explore-mini"></p>
 							<p class="summary" id="explore-summary">Loading wildlife records&hellip;</p>
 						</div>
-						<button type="button" class="btn btn-ghost btn-sm" id="panel-toggle" aria-expanded="false" aria-controls="explore-controls">Change</button>
+						<div class="explore-actions">
+							<button type="button" class="btn btn-ghost btn-sm" id="panel-toggle" aria-expanded="false" aria-controls="explore-controls">Change</button>
+							<!-- phones: open / close the card (it starts as a slim bar so the map stays usable) -->
+							<button type="button" class="icon-btn card-expand" id="card-expand" aria-label="Show more" aria-expanded="false"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+						</div>
+					</div>
+					<!-- Map key: always visible, even with the card folded. "Key" opens the full explanation. -->
+					<div class="map-key" role="group" aria-label="Map key">
+						<span class="mk-item"><i class="mk-swatch zone" aria-hidden="true"></i>Zone</span>
+						<span class="mk-item"><i class="mk-swatch visited" aria-hidden="true"></i>Visited</span>
+						<span class="mk-item"><i class="mk-swatch threat" aria-hidden="true"></i>Threatened</span>
+						<span class="mk-item"><i class="mk-swatch you" aria-hidden="true"></i>You</span>
+						<button type="button" class="mk-more" id="btn-map-key" aria-haspopup="dialog" aria-label="Map key"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4.5h1"/></svg><span class="mk-more-text">Key</span></button>
 					</div>
 					<div class="nearby" id="nearby-wrap">
 						<p class="nearby-title"><span>Likely around here</span><span id="nearby-count"></span></p>
@@ -146,16 +159,9 @@
 								</select>
 							</label>
 						</div>
-						<div class="legend" aria-label="Map key">
-							<span><i class="legend-dot zone"></i>Habitat zone</span>
-							<span><i class="legend-dot visited"></i>Visited</span>
-							<span><i class="legend-dot threat"></i>Threatened species</span>
-							<span><i class="legend-dot types"></i>Animal types recorded</span>
-							<span><i class="legend-dot you"></i>You</span>
-						</div>
 						<p class="hint-text">Drag the map and tap "Search this area" to explore anywhere in Brisbane.</p>
 					</div>
-					<p class="map-credit" id="map-credit"></p>
+					<p class="map-credit js-map-credit" id="map-credit"></p>
 				</aside>
 			</section>
 
@@ -196,7 +202,6 @@
 									<option value="no">No.</option>
 									<option value="name">A to Z</option>
 									<option value="recent">Recently found</option>
-									<option value="rare">Rarest first</option>
 								</select>
 							</label>
 						</div>
@@ -284,7 +289,7 @@
 						<span class="switch-track" aria-hidden="true"></span>
 						<span>Simulate my position</span>
 					</label>
-					<p class="hint-text">When on, walk with the arrows on the map: tap for a 25 m step, or hold to keep walking. The keyboard arrow keys work too.</p>
+					<p class="hint-text">When on, walk with the arrows on the map: tap for a 25 m step, or hold to keep walking. The keyboard arrow keys work too. The find-me button turns demo off and takes you back to your real location.</p>
 					<div class="btn-row">
 						<button type="button" class="btn btn-primary btn-sm" id="btn-jump"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5s-6.5-6-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.5-6.5 11.5-6.5 11.5z"/><circle cx="12" cy="10" r="2.4"/></svg>Jump into the nearest zone</button>
 						<button type="button" class="btn btn-ghost btn-sm" id="btn-replay-intro">Replay intro</button>
@@ -314,6 +319,39 @@
 			<div class="sheet-body">
 				<p class="sheet-hint" id="zone-hint" hidden></p>
 				<ul id="zone-species"></ul>
+			</div>
+		</aside>
+
+		<!-- Map key: what every colour and mark on the map means -->
+		<aside class="sheet" id="key-sheet" role="dialog" aria-modal="true" aria-labelledby="key-title" hidden>
+			<div class="sheet-handle" aria-hidden="true"></div>
+			<div class="sheet-head">
+				<div>
+					<p class="eyebrow">Map key</p>
+					<h2 id="key-title">What the map shows</h2>
+				</div>
+				<button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+			</div>
+			<div class="sheet-body">
+				<ul class="key-list">
+					<li><span class="key-visual"><i class="mk-swatch lg zone"></i></span>
+						<span class="key-text"><b>Habitat zone</b><small>Wildlife has been recorded here recently. Zones next to each other use different greens so you can tell them apart.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg visited"></i></span>
+						<span class="key-text"><b>Visited</b><small>Zones you have walked into turn gold.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg threat"></i></span>
+						<span class="key-text"><b>Threatened species recorded</b><small>A coral edge. Give these animals extra space.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg here"></i></span>
+						<span class="key-text"><b>The zone you are in</b><small>Outlined in orange, and the status bar at the top names it.</small></span></li>
+					<li><span class="key-visual" id="key-chip-sample"></span>
+						<span class="key-text"><b>Zone label</b><small>How many species were recorded in the zone, and which kinds of animal. Zoom in to see its name.</small></span></li>
+					<li class="key-types-row"><span class="key-text"><b>Kinds of animal</b></span><span class="key-types" id="key-types"></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg area"></i></span>
+						<span class="key-text"><b>Search area</b><small>The circle the app looks in. Drag the map and tap "Search this area" to move it.</small></span></li>
+					<li><span class="key-visual"><i class="mk-swatch lg you"></i></span>
+						<span class="key-text"><b>You</b><small>Your position from GPS, or from the arrows in demo mode.</small></span></li>
+				</ul>
+				<p class="hint-text">Zones show where animals have been recorded, never exactly where an animal is.</p>
+				<p class="map-credit js-map-credit"></p>
 			</div>
 		</aside>
 
@@ -439,20 +477,20 @@
 		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 		<!-- Cached data bundle (generated by scripts/fetch-data.mjs), loaded as a
 		     script so the app also works from file://. -->
-		<script src="data/cached.js"></script>
-		<script src="js/config.js"></script>
-		<script src="js/util.js"></script>
-		<script src="js/zones.js"></script>
-		<script src="js/storage.js"></script>
-		<script src="js/data.js"></script>
-		<script src="js/photos.js"></script>
-		<script src="js/icons.js"></script>
-		<script src="js/progress.js"></script>
-		<script src="js/ui.js"></script>
-		<script src="js/map.js"></script>
-		<script src="js/walk.js"></script>
-		<script src="js/wildex.js"></script>
-		<script src="js/badges.js"></script>
-		<script src="js/app.js"></script>
+		<script src="data/cached.js?v=dev"></script>
+		<script src="js/config.js?v=dev"></script>
+		<script src="js/util.js?v=dev"></script>
+		<script src="js/zones.js?v=dev"></script>
+		<script src="js/storage.js?v=dev"></script>
+		<script src="js/data.js?v=dev"></script>
+		<script src="js/photos.js?v=dev"></script>
+		<script src="js/icons.js?v=dev"></script>
+		<script src="js/progress.js?v=dev"></script>
+		<script src="js/ui.js?v=dev"></script>
+		<script src="js/map.js?v=dev"></script>
+		<script src="js/walk.js?v=dev"></script>
+		<script src="js/wildex.js?v=dev"></script>
+		<script src="js/badges.js?v=dev"></script>
+		<script src="js/app.js?v=dev"></script>
 	</body>
 </html>
