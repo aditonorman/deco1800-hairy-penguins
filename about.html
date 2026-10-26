@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+		<meta name="theme-color" content="#f2f7f0">
+		<title>About | Wild Neighbours</title>
+		<meta name="description" content="How Wild Neighbours works, where its wildlife records come from, and who made it.">
+		<link rel="icon" href="images/icon.svg" type="image/svg+xml">
+		<script src="js/theme.js"></script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..800&display=swap" rel="stylesheet">
+		<link rel="stylesheet" href="css/style.css">
+	</head>
+	<body class="about-page">
+		<a class="skip-link" href="#about-content">Skip to content</a>
+		<header class="app-header about-header">
+			<a class="brand" href="index.html" aria-label="Wild Neighbours home">
+				<span class="brand-mark"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15.6" r="3.6" fill="currentColor" stroke="none"/><circle cx="6.2" cy="10.6" r="1.9" fill="currentColor" stroke="none"/><circle cx="9.7" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="14.3" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.8" cy="10.6" r="1.9" fill="currentColor" stroke="none"/></svg></span>
+				<span><span>Wild</span> Neighbours</span>
+			</a>
+			<div class="header-right">
+				<a class="about-return" href="index.html#map">Explore the map</a>
+				<button type="button" class="icon-btn theme-btn" id="btn-theme" aria-label="Switch to dark mode" aria-pressed="false"><svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/></svg><svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg></button>
+			</div>
+		</header>
+
+		<main class="about-main" id="about-content">
+			<section class="about-hero" aria-labelledby="about-title">
+				<p class="eyebrow">A field guide for the curious</p>
+				<h2 id="about-title">About Wild Neighbours</h2>
+				<p class="lead">Wild Neighbours helps hikers discover and learn about wildlife on local trails using public wildlife records.</p>
+				<h3>What you can do</h3>
+				<ul class="about-actions">
+					<li><a href="index.html#pokedex">Browse the animal compendium <span>Search and filter real species records</span></a></li>
+					<li><a href="index.html#map">Explore by zone <span>See which animals have been recorded in different areas</span></a></li>
+					<li><a href="index.html#map">Log your sightings <span>Keep a personal record of what you've spotted</span></a></li>
+					<li><a href="index.html#badges">Earn badges <span>Mark your progress as you explore</span></a></li>
+				</ul>
+			</section>
+
+			<section class="about-section" aria-labelledby="data-title">
+				<h2 id="data-title">Where our data comes from</h2>
+				<p class="about-intro">The app uses public wildlife records with a local cache and live ALA updates.</p>
+				<div class="about-cards">
+					<article class="about-card">
+						<h3>Atlas of Living Australia (ALA)</h3>
+						<p>Species records, names and reference images.</p>
+						<p><strong>Licence:</strong> Varies by record and provider. <a href="https://www.ala.org.au/terms-of-use/" target="_blank" rel="noopener">ALA Terms of Use</a>.</p>
+					</article>
+					<article class="about-card">
+						<h3>WildNet (Queensland Government)</h3>
+						<p>Queensland wildlife and conservation records.</p>
+						<p><strong>Licence:</strong> Creative Commons Attribution 4.0 International (CC BY 4.0).</p>
+					</article>
+					<article class="about-card">
+						<h3>Wikipedia REST API</h3>
+						<p>Short animal descriptions. Images come from ALA.</p>
+						<p><strong>Licence:</strong> Text is generally CC BY-SA 4.0; check each article.</p>
+					</article>
+				</div>
+				<p class="about-note">Some animals have no image because the available data sources do not provide one.</p>
+			</section>
+
+			<section class="about-section" aria-labelledby="data-treatment-title">
+				<h2 id="data-treatment-title">How we treated the data</h2>
+				<p class="about-intro">Our standpoint is to report data accurately and label uncertainty rather than invent missing information.</p>
+				<div class="about-disclosures">
+					<article class="about-disclosure">
+						<h3>Rarity is a record-count estimate</h3>
+						<p>Rarity is an app estimate based on cached record counts, not a measure of how common an animal is in nature.</p>
+					</article>
+					<article class="about-disclosure">
+						<h3>Missing images</h3>
+						<p>We do not show unrelated photos when a species has no available image.</p>
+					</article>
+					<article class="about-disclosure">
+						<h3>Not a safety guide</h3>
+						<p>Wild Neighbours is for curiosity only. Records may be incomplete or outdated; do not use the app for safety decisions.</p>
+					</article>
+					<article class="about-disclosure">
+						<h3>Why some animal icons are greyed out</h3>
+						<p>Greyed-out animals are part of the compendium but have not been recorded in the selected zone.</p>
+					</article>
+					<article class="about-disclosure">
+						<h3>Your data</h3>
+						<p>Progress, sightings and settings are stored in this browser. Photos use IndexedDB. Location is used only for walking and zone matching, and live searches send the selected centre and radius to ALA. There is no app account or backend.</p>
+					</article>
+					<article class="about-disclosure">
+						<h3>Prototype status</h3>
+						<p>This university prototype may occasionally be slow or unreliable.</p>
+					</article>
+				</div>
+			</section>
+
+			<section class="about-section" aria-labelledby="team-title">
+				<h2 id="team-title">Meet Team Hairy Penguins</h2>
+				<div class="team-grid">
+					<article class="team-card" style="--avatar:#3c6854"><span class="team-avatar" aria-hidden="true">R</span><h3>Rafay</h3><p class="team-role">ALA/WildNet data, compendium and documentation</p><p>Worked on the wildlife data integrations and the compendium’s locked and unlocked species, and added the Wikipedia summaries and this About page.</p></article>
+					<article class="team-card" style="--avatar:#5aaee0"><span class="team-avatar" aria-hidden="true">J</span><h3>Jace</h3><p class="team-role">Animal compendium and documentation</p><p>Connected the WildNet and ALA data to the animal compendium and fixed the grid so each card shows the right animal and image.</p></article>
+					<article class="team-card" style="--avatar:#ec8fb1"><span class="team-avatar" aria-hidden="true">D</span><h3>Dito</h3><p class="team-role">Map, zones and deployment</p><p>Set up the interactive map, location tracking and the habitat zones, and handled getting the app deployed for the team.</p></article>
+					<article class="team-card" style="--avatar:#a48be8"><span class="team-avatar" aria-hidden="true">S</span><h3>Sophia</h3><p class="team-role">UI design and front end</p><p>Designed the app’s screens in Figma and built parts of the front-end interface.</p></article>
+					<article class="team-card" style="--avatar:#e0764a"><span class="team-avatar" aria-hidden="true">B</span><h3>Bong</h3><p class="team-role">Documentation and data privacy</p><p>Worked on the project documentation and on how the app handles user data privacy.</p></article>
+				</div>
+				<p class="about-note">Built for DECO1800 Design Computing Studio 1, Semester 2, 2026, The University of Queensland.</p>
+			</section>
+
+			<section class="about-section" aria-labelledby="credits-title">
+				<h2 id="credits-title">Credits</h2>
+				<ul class="about-refs">
+						<li><strong>Atlas of Living Australia</strong><span>Records and images. ALA and contributing providers. Licences vary by record. <a href="https://www.ala.org.au/terms-of-use/" target="_blank" rel="noopener">Terms of Use</a>.</span></li>
+						<li><strong>Queensland WildNet Data API</strong><span>Wildlife records and conservation status from the Queensland Government. Licence: <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International (CC BY 4.0)</a>. <a href="https://wildnet-pub.science-data.qld.gov.au/api/v1" target="_blank" rel="noopener">WildNet API</a>.</span></li>
+						<li><strong>Wikipedia REST API</strong><span>Species descriptions by Wikipedia contributors, generally CC BY-SA 4.0. <a href="https://en.wikipedia.org/wiki/Wikipedia:Copyrights" target="_blank" rel="noopener">Copyright terms</a>.</span></li>
+					<li><strong>DM Sans</strong><span>Interface font. Creator: Colophon Foundry. SIL Open Font License 1.1. Served through <a href="https://fonts.google.com/specimen/DM+Sans" target="_blank" rel="noopener">Google Fonts</a>.</span></li>
+					<li><strong>Leaflet 1.9.4</strong><span>Interactive map library. Creator: Vladimir Agafonkin and contributors. BSD-2-Clause licence. <a href="https://github.com/Leaflet/Leaflet" target="_blank" rel="noopener">Leaflet project</a>.</span></li>
+					<li><strong>Map tiles</strong><span>OpenTopoMap map style and OpenStreetMap contributors; SRTM elevation data. OpenTopoMap is CC BY-SA. <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap attribution</a>.</span></li>
+						<li><strong>Icons and CSS</strong><span>Team-made inline SVG icons; no icon pack or CSS framework.</span></li>
+						<li><strong>AI assistance</strong><span>Generative AI helped debug and explain code. Details are in our AI Use Declaration.</span></li>
+				</ul>
+				<p class="about-note">All other design assets were created by the team.</p>
+			</section>
+
+			<footer class="about-footer">
+				<p>Wild Neighbours · Hairy Penguins</p>
+				<p>DECO1800 Design Computing Studio 1, Semester 2, 2026 · The University of Queensland</p>
+				<p><a href="index.html#map">Return to the app</a></p>
+			</footer>
+		</main>
+
+		<nav class="tabbar" aria-label="Main">
+			<a href="index.html#map"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span></a>
+			<a href="index.html#pokedex"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h5.5A2.5 2.5 0 0 1 12 7v13a2 2 0 0 0-2-2H4z"/><path d="M20 4.5h-5.5A2.5 2.5 0 0 0 12 7v13a2 2 0 0 1 2-2h6z"/></svg><span>Pokedex</span></a>
+			<a href="index.html#badges"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15" r="5.5"/><path d="M8.6 10.6 6 3h4l2 4.2L14 3h4l-2.6 7.6"/><path d="M12 12.6l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z" fill="currentColor" stroke="none"/></svg><span>Badges</span></a>
+			<a class="is-active" href="about.html" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg><span>About</span></a>
+		</nav>
+	</body>
+</html>

@@ -1167,18 +1167,19 @@ img.fade-img.is-loaded { opacity: 1; }
   --tab-icon-top: 14px;            /* icon top, measured from the top of each tab button */
   position: fixed; z-index: 1000; left: 50%; bottom: calc(12px + var(--safe-bottom)); transform: translateX(-50%);
   width: min(420px, calc(100% - 24px)); height: var(--nav-h); padding: 6px;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   border-radius: 26px; background: var(--tabbar-bg); backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg), var(--inset);
 }
 /* Figma: the active tab's icon sits in a forest-green circle. The indicator is exactly one
    tab wide and tall (so it lines up at any width or zoom); the circle is drawn centred on the icon. */
-.tab-indicator { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 3); pointer-events: none;
+.tab-indicator { position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px) / 4); pointer-events: none;
   transform: translateX(calc(var(--i) * 100%)); transition: transform 0.45s var(--spring); }
 .tab-indicator::before { content: ""; position: absolute; left: 50%; top: calc(var(--tab-icon-top) + 11px); width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
   background: var(--primary); box-shadow: 0 6px 14px var(--primary-glow); }
-.tabbar button { position: relative; z-index: 1; border: 0; background: none; color: var(--fg-60); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 13px; padding: var(--tab-icon-top) 0 0; font-size: 0.62rem; line-height: 1; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; transition: color 0.2s ease; }
+.tabbar button, .tabbar > a { position: relative; z-index: 1; border: 0; background: none; color: var(--fg-60); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 13px; padding: var(--tab-icon-top) 0 0; font: 800 0.62rem/1 var(--font-ui); letter-spacing: 0.07em; text-transform: uppercase; text-decoration: none; transition: color 0.2s ease; }
 .tabbar button .icon { width: 22px; height: 22px; flex: none; transition: transform 0.35s var(--spring), color 0.2s ease; }
+.tabbar > a .icon { width: 22px; height: 22px; flex: none; }
 .tabbar button.is-active { color: var(--tab-label-active); }
 .tabbar button.is-active .icon { color: var(--tab-icon-active); }
 .tab-dot { position: absolute; top: 6px; left: calc(50% + 10px); z-index: 2; width: 9px; height: 9px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--tabbar-solid); animation: pulse-dot 1.8s ease-in-out infinite; }
@@ -1302,6 +1303,65 @@ img.fade-img.is-loaded { opacity: 1; }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   .celebrate-timer { animation-duration: var(--ms, 2000ms) !important; }
 }
+
+/* ---------- standalone About page --------------------------------------------------------------------------- */
+.about-page { height: auto; min-height: 100vh; min-height: 100svh; overflow-x: hidden; overflow-y: auto; background: var(--bg); }
+.about-header { position: sticky; top: 0; z-index: 20; }
+.about-header .brand { color: var(--fg); text-decoration: none; }
+.about-return { color: var(--link); font-size: 0.82rem; font-weight: 800; text-decoration: none; }
+.about-return:hover, .about-page a:hover { text-decoration-thickness: 2px; }
+main.about-main { position: relative; inset: auto; width: min(100% - 48px, 560px); height: auto; min-height: 0; margin: 0 auto; padding: 28px 0 calc(var(--nav-space) + 30px); }
+.about-hero { padding: 24px 0 34px; border-bottom: 1px solid var(--line); }
+.about-hero h2 { max-width: 760px; margin: 10px 0 14px; color: var(--fg); font: 800 2.35rem/1.05 var(--font-head); }
+.about-hero .lead { max-width: 760px; color: var(--fg-80); font-size: 1.08rem; line-height: 1.7; }
+.about-section { padding: 34px 0; border-bottom: 1px solid var(--line); }
+.about-section > h2 { margin: 0 0 9px; color: var(--fg); font: 800 1.55rem/1.2 var(--font-head); }
+.about-intro { max-width: 760px; margin: 0 0 20px; color: var(--fg-60); line-height: 1.65; }
+.about-actions { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 20px 0 0; padding: 0; list-style: none; }
+.about-actions a { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; align-items: start; padding: 16px 0; color: var(--link); font-weight: 800; text-decoration: none; border-bottom: 1px solid var(--line); }
+.about-actions a span { color: var(--fg-60); font-size: 0.9rem; font-weight: 500; }
+.about-cards { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.about-card { min-width: 0; padding: 18px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--surface); box-shadow: var(--card-shadow); }
+.about-card h3 { margin: 0 0 8px; color: var(--fg); font: 800 1rem/1.3 var(--font-head); }
+.about-card p { margin: 0; color: var(--fg-60); font-size: 0.91rem; line-height: 1.6; }
+.about-card p + p { margin-top: 10px; }
+.about-card a, .about-refs a { color: var(--link); overflow-wrap: anywhere; }
+.about-note { margin: 16px 0 0; color: var(--fg-60); font-size: 0.9rem; line-height: 1.6; }
+.about-disclosures { display: grid; grid-template-columns: 1fr; gap: 22px; margin-top: 22px; }
+.about-disclosure h3 { margin: 0 0 7px; color: var(--fg); font: 800 1rem/1.3 var(--font-head); }
+.about-disclosure p { margin: 0; color: var(--fg-80); line-height: 1.65; }
+.team-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px; }
+.team-card { padding: 17px 14px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--surface); box-shadow: var(--card-shadow); }
+.team-avatar { display: grid; width: 44px; aspect-ratio: 1; place-items: center; margin-bottom: 12px; border-radius: 50%; background: var(--avatar); color: #fff; font-size: 0.88rem; font-weight: 800; }
+.team-card h3 { margin: 0 0 3px; color: var(--fg); font: 800 0.98rem/1.25 var(--font-head); }
+.team-role { margin: 0 0 8px !important; color: var(--eyebrow) !important; font-size: 0.78rem !important; font-weight: 800; }
+.team-card p { margin: 0; color: var(--fg-60); font-size: 0.86rem; line-height: 1.55; }
+.about-refs { display: grid; grid-template-columns: 1fr; gap: 0; margin: 18px 0 0; padding: 0; list-style: none; }
+.about-refs li { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 14px 0; border-top: 1px solid var(--line); }
+.about-refs strong { color: var(--fg); }
+.about-refs span { color: var(--fg-60); font-size: 0.91rem; line-height: 1.6; }
+.about-footer { padding: 25px 0 0; color: var(--fg-60); font-size: 0.86rem; line-height: 1.6; }
+.about-footer p { margin: 4px 0; }
+.about-footer a { color: var(--link); }
+.about-page .tabbar { grid-template-columns: repeat(4, 1fr); }
+.about-page .tabbar a { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 13px; padding: var(--tab-icon-top) 0 0; color: var(--fg-60); font-size: 0.62rem; font-weight: 800; line-height: 1; text-decoration: none; text-transform: uppercase; }
+.about-page .tabbar a .icon { width: 22px; height: 22px; flex: none; }
+.about-page .tabbar a.is-active { color: var(--tab-label-active); }
+.about-page .tab-indicator { display: none; }
+@media (min-width: 700px) {
+  main.about-main { width: min(100% - 48px, 1040px); padding-top: 42px; }
+  .about-hero h2 { font-size: 3rem; }
+  .about-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 26px; }
+  .about-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .about-disclosures { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 34px; }
+  .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .about-refs li { grid-template-columns: minmax(140px, 0.8fr) minmax(0, 2fr); gap: 8px 22px; }
+}
+@media (min-width: 1000px) {
+  .about-hero h2 { font-size: 3.5rem; }
+  .team-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .about-page * { scroll-behavior: auto !important; animation-duration: 0.01ms !important; } }
 
 /* ---------- light / dark switch ---------------------------------------------------------------------- */
 .theme-btn .icon-sun { display: none; }

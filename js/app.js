@@ -368,6 +368,8 @@
 	}
 	function processHash(h) {
 		if (h === "#demo") { WN_UI.showSettings("demo"); return; }
+		const tab = h.match(/^#(map|pokedex|badges)$/);
+		if (tab) { clearHash(); WN_UI.showTab(tab[1]); return; }
 		const m = h.match(/^#friend=([A-Za-z0-9_-]+)/);
 		if (m) {
 			clearHash();
