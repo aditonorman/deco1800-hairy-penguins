@@ -1,7 +1,7 @@
 /* ==========================================================================
    Wild Neighbours - personal photos
    --------------------------------------------------------------------------
-   A user can attach ONE photo to any unlocked Pokedex entry. The photo is a
+   A user can attach ONE photo to any unlocked Wildex entry. The photo is a
    private keepsake: it is resized on the device, stored in IndexedDB, never
    uploaded, never shared and never used to verify anything.
    ========================================================================== */

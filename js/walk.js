@@ -101,10 +101,18 @@ const WN_WALK = (function () {
 
 	/* ---- demo mode (simulated position) ---------------------------------- */
 
-	function setSimulate(on, quiet) {
+	/**
+	 * @param quiet     no toast
+	 * @param noAutoGps when turning demo off, the caller starts GPS itself
+	 */
+	function setSimulate(on, quiet, noAutoGps) {
 		state.source = on ? "sim" : "gps";
 		WN_STORE.setSetting("simulate", on);
 		$("#dpad").hidden = !on;
+		$("#sim-toggle").checked = on;
+		const findMe = on ? "Leave demo and find me" : "Find me";
+		$("#btn-locate").setAttribute("aria-label", findMe);
+		$("#btn-locate").title = findMe;
 		document.body.classList.toggle("is-sim", on);
 		if (on) {
 			stopGps();
@@ -116,7 +124,7 @@ const WN_WALK = (function () {
 			WN_MAP.clearYou();
 			state.currentZoneId = null;
 			setHud("Tap the find-me button to start walking", "out");
-			autoStartGps();
+			if (!noAutoGps) autoStartGps();
 		}
 	}
 	function isSimulating() { return state.source === "sim"; }
@@ -156,7 +164,7 @@ const WN_WALK = (function () {
 	/** Demo shortcut: move into the nearest zone that has not been visited yet. */
 	function jumpToNearestZone() {
 		if (!state.zones.length) { WN_UI.toast("No zones here yet. Pick a spot with records first."); return; }
-		if (state.source !== "sim") { setSimulate(true, true); $("#sim-toggle").checked = true; }
+		if (state.source !== "sim") setSimulate(true, true);
 		const from = state.pos || state.centre;
 		const visited = new Set(WN_STORE.stats().zonesVisited);
 		const candidates = state.zones.filter(z => !visited.has(z.id) && z.id !== state.currentZoneId);
@@ -191,10 +199,10 @@ const WN_WALK = (function () {
 	/** Find-me button: ask for the position, follow it, and recentre the search if far away. */
 	function locate() {
 		if (state.source === "sim") {
-			// In demo mode the button recentres on the simulated walker.
-			if (state.pos) WN_MAP.panTo(state.pos.lat, state.pos.lng);
-			else placeAtCentre();
-			return;
+			// "Find me" means the real you: leave demo mode and go back to GPS.
+			// (The follow button still recentres on the demo walker.)
+			setSimulate(false, true, true);
+			WN_UI.toast("Demo off. Finding your real location…", 2500);
 		}
 		if (!("geolocation" in navigator)) { WN_UI.toast("This browser cannot share your location."); return; }
 		state.follow = true;
@@ -202,51 +210,62 @@ const WN_WALK = (function () {
 		startGps(true);
 	}
 
+	let gpsRun = 0;   // bumped by stopGps so late answers from an old request are ignored
 	function startGps(fromButton) {
 		if (!("geolocation" in navigator)) return;
 		stopGps();
+		const run = gpsRun;
 		state.gpsStatus = "waiting";
 		setHud("Finding you…", "out");
 		$("#btn-locate").classList.add("is-busy");
-		let first = true;
-		state.watchId = navigator.geolocation.watchPosition(
-			(p) => {
-				const c = p.coords;
-				state.gpsStatus = "ok";
-				$("#btn-locate").classList.remove("is-busy");
-				const wasFollowing = state.follow;
-				if (first) state.follow = false;      // decide below whether to pan
-				updatePosition(c.latitude, c.longitude, c.accuracy, "gps", true);
-				if (first) state.follow = wasFollowing;
-				if (first && state.follow) WN_MAP.panTo(c.latitude, c.longitude);
-				if (first) {
-					first = false;
-					const far = state.centre && U.haversine(c.latitude, c.longitude, state.centre.lat, state.centre.lng);
-					if (far != null && far > Math.max(5000, 3 * (WN_STORE.settings().radius || 1500))) {
-						const recentred = state.onFarAway && state.onFarAway({ lat: c.latitude, lng: c.longitude, distanceM: far, fromButton: Boolean(fromButton) });
-						if (!recentred) {
-							// stay on the chosen area instead of panning off to the walker
-							state.follow = false;
-							$("#btn-follow").classList.remove("is-active");
-							$("#btn-follow").setAttribute("aria-pressed", "false");
-							setHud("You are " + U.formatDistance(far) + " from " + (state.centre.place || "the search area"), "out");
-							WN_MAP.panTo(state.centre.lat, state.centre.lng);
-						}
+		let first = true, triedRough = false, warned = false;
+		const onFix = (p) => {
+			if (run !== gpsRun) return;
+			const c = p.coords;
+			state.gpsStatus = "ok";
+			$("#btn-locate").classList.remove("is-busy");
+			const wasFollowing = state.follow;
+			if (first) state.follow = false;      // decide below whether to pan
+			updatePosition(c.latitude, c.longitude, c.accuracy, "gps", true);
+			if (first) state.follow = wasFollowing;
+			if (first && state.follow) WN_MAP.panTo(c.latitude, c.longitude);
+			if (first) {
+				first = false;
+				const far = state.centre && U.haversine(c.latitude, c.longitude, state.centre.lat, state.centre.lng);
+				if (far != null && far > Math.max(5000, 3 * (WN_STORE.settings().radius || 1500))) {
+					const recentred = state.onFarAway && state.onFarAway({ lat: c.latitude, lng: c.longitude, distanceM: far, fromButton: Boolean(fromButton) });
+					if (!recentred) {
+						// stay on the chosen area instead of panning off to the walker
+						state.follow = false;
+						$("#btn-follow").classList.remove("is-active");
+						$("#btn-follow").setAttribute("aria-pressed", "false");
+						setHud("You are " + U.formatDistance(far) + " from " + (state.centre.place || "the search area"), "out");
+						WN_MAP.panTo(state.centre.lat, state.centre.lng);
 					}
 				}
-			},
-			(err) => {
-				$("#btn-locate").classList.remove("is-busy");
-				state.gpsStatus = err.code === 1 ? "denied" : "error";
-				setHud(err.code === 1 ? "Location access was denied" : "Could not get a location fix", "out");
-				if (fromButton) WN_UI.toast(err.code === 1
-					? "Location is blocked for this site. Allow it in your browser, or use demo tools in settings."
-					: "No GPS fix yet. Try again outdoors, or use demo tools in settings.", 4000);
-			},
-			{ enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 }
-		);
+			}
+		};
+		const onFail = (err) => {
+			if (run !== gpsRun) return;
+			// Indoors a precise GPS fix can take minutes. Show a rough Wi-Fi or mobile-network
+			// fix meanwhile; the watch keeps trying for GPS and takes over when it arrives.
+			if (err.code !== 1 && first && !triedRough) {
+				triedRough = true;
+				navigator.geolocation.getCurrentPosition(onFix, onFail, { enableHighAccuracy: false, maximumAge: 600000, timeout: 15000 });
+				return;
+			}
+			if (!first && err.code !== 1) return;   // keep the last fix while GPS drops out
+			$("#btn-locate").classList.remove("is-busy");
+			state.gpsStatus = err.code === 1 ? "denied" : "error";
+			setHud(err.code === 1 ? "Location access was denied" : "Could not get a location fix", "out");
+			if (fromButton && !warned) { warned = true; WN_UI.toast(err.code === 1
+				? "Location is blocked. Allow it for this site, and check your phone's settings let your browser use location. Demo tools are in settings."
+				: "No location yet. Check location is turned on and try outdoors, or use demo tools in settings.", 6000); }
+		};
+		state.watchId = navigator.geolocation.watchPosition(onFix, onFail, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
 	}
 	function stopGps() {
+		gpsRun++;
 		if (state.watchId != null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; }
 	}
 
@@ -317,7 +336,7 @@ const WN_WALK = (function () {
 		const place = state.centre ? state.centre.place : null;
 		const firstVisit = WN_STORE.visitZone(zone, place);
 
-		// Collecting: every species recorded here joins the Pokedex at zone-visit tier.
+		// Collecting: every species recorded here joins the Wildex at zone-visit tier.
 		const unlocked = [];
 		zone.species.forEach(s => {
 			const r = WN_STORE.unlock(s.key, 1, { zoneName: zone.name, place });

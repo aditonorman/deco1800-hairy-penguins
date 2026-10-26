@@ -23,11 +23,12 @@ function check(name, ok, detail) {
 }
 
 console.log("catalogue");
-check("53 badges", P.BADGES.length === 53, P.BADGES.length);
+check("52 badges", P.BADGES.length === 52, P.BADGES.length);
+check("no badge rewards rarity", !P.BADGES.some(b => /rare/i.test(b.metric) || b.id === "rare-1"));
 check("badge ids unique", new Set(P.BADGES.map(b => b.id)).size === P.BADGES.length);
 check("every badge has a known category", P.BADGES.every(b => P.CATEGORIES.some(c => c.id === b.cat)));
 check("every badge icon exists", P.BADGES.every(b => ICONS.names.includes(b.icon)), P.BADGES.filter(b => !ICONS.names.includes(b.icon)).map(b => b.icon).join(","));
-check("every rarity has an XP bonus", P.BADGES.every(b => CFG.XP.badge[b.rarity] > 0));
+check("every medal tier has an XP bonus", P.BADGES.every(b => CFG.XP.badge[b.rarity] > 0));
 check("secret badges have hints", P.BADGES.filter(b => b.secret).every(b => b.hint));
 
 console.log("\nstreaks and seasons");
@@ -43,11 +44,11 @@ check("seasons (southern hemisphere)", [0, 3, 6, 9].map(P.seasonOf).join() === "
 
 console.log("\nstats and badges");
 const index = new Map([
-	["phascolarctos-cinereus", { group: "mammal", threatened: true, rarity: "common" }],
-	["dacelo-novaeguineae", { group: "bird", threatened: false, rarity: "common" }],
-	["intellagama-lesueurii", { group: "reptile", threatened: false, rarity: "common" }],
-	["litoria-caerulea", { group: "frog", threatened: false, rarity: "uncommon" }],
-	["rare-thing", { group: "bird", threatened: false, rarity: "veryrare" }]
+	["phascolarctos-cinereus", { group: "mammal", threatened: true }],
+	["dacelo-novaeguineae", { group: "bird", threatened: false }],
+	["intellagama-lesueurii", { group: "reptile", threatened: false }],
+	["litoria-caerulea", { group: "frog", threatened: false }],
+	["rare-thing", { group: "bird", threatened: false }]
 ]);
 const at = (h) => { const d = new Date(2026, 9, 3, h, 15); return d.toISOString(); };
 const input = {
@@ -73,7 +74,6 @@ check("all four groups covered", st.groupsCovered === 4, st.groupsCovered);
 check("threatened 1", st.threatened === 1);
 check("icons 3 (koala, kookaburra, water dragon, green tree frog = 4)", st.icons === 4, st.icons);
 check("koala sighted", st.koalaSighted === 1);
-check("very rare 1", st.veryRare === 1);
 check("photos 1", st.photos === 1);
 check("areas 2 (zones 150 m apart count once)", st.areas === 2, st.areas);
 check("areas: 3 spread-out points", P.countAreas([{ lat: -27.47, lng: 152.95 }, { lat: -27.55, lng: 153.05 }, { lat: -27.38, lng: 153.08 }]) === 3);
@@ -82,7 +82,7 @@ check("night owl (9 pm unlock)", st.night === 1);
 check("early bird (6 am unlock)", st.early === 1);
 const ev = P.evaluate(st);
 const eligible = new Set(ev.filter(e => e.eligible).map(e => e.badge.id));
-["col-1", "all-4", "see-1", "sign-1", "zone-1", "dist-1", "thr-1", "koala", "rare-1", "pic-1", "friend-1", "night-owl", "early-bird"].forEach(id =>
+["col-1", "all-4", "see-1", "sign-1", "zone-1", "dist-1", "thr-1", "koala", "pic-1", "friend-1", "night-owl", "early-bird"].forEach(id =>
 	check("eligible: " + id, eligible.has(id)));
 ["col-10", "see-10", "zone-5", "streak-3", "icon-5", "area-3"].forEach(id => check("not yet: " + id, !eligible.has(id)));
 const z5 = ev.find(e => e.badge.id === "zone-5");
@@ -98,8 +98,8 @@ check("level for 249 XP = 2", P.levelFor(249).level === 2);
 check("level for 250 XP = 3", P.levelFor(250).level === 3);
 check("rank at 3 = Trail Scout", P.levelFor(260).rank === "Trail Scout");
 const xp = P.xpFor(input, st, ["col-1", "koala"]);
-// tiers 60+30+10+60+10 = 170, rarity 0+0+0+5+30 = 35, zones 75, distance 12*5 = 60, photo 15, badges 25+100
-check("XP adds up", xp === 170 + 35 + 75 + 60 + 15 + 125, xp);
+// tiers 60+30+10+60+10 = 170, zones 75, distance 12*5 = 60, photo 15, badges 25+100 (no rarity bonus)
+check("XP adds up", xp === 170 + 75 + 60 + 15 + 125, xp);
 const nu = P.nextUp(ev, {}, 3);
 check("next up has 3 non-secret badges", nu.length === 3 && nu.every(e => !e.badge.secret));
 

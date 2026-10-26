@@ -59,7 +59,7 @@ const AREAS = (args.lat !== undefined || args.lng !== undefined)
 const WILDNET = "https://wildnet-pub.science-data.qld.gov.au/api/v1";
 const ALA = "https://api.ala.org.au";
 
-// Only "hiker" wildlife goes in the Pokedex. Insects, fish etc. are excluded
+// Only "hiker" wildlife goes in the Wildex. Insects, fish etc. are excluded
 // so the collection stays focused (and the demo stays snappy).
 const CLASSES = ["Mammalia", "Aves", "Reptilia", "Amphibia"];
 const CLASS_GROUP = { Mammalia: "mammal", Aves: "bird", Reptilia: "reptile", Amphibia: "frog" };

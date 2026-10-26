@@ -20,7 +20,7 @@ const WN_MAP = (function () {
 	let cells = new Map();        // zone id -> { poly, zone, centre, shade }
 	let chips = [];               // { zone, marker }
 	let activeId = null;          // the zone the walker is standing in
-	const handlers = { zoneTap: null, mapTap: null, moved: null };
+	const handlers = { zoneTap: null, mapTap: null, moved: null, dragStart: null };
 	let tileErrorShown = false;
 
 	/* Basemap providers, tried in order. OpenStreetMap's own tile servers are
@@ -49,8 +49,7 @@ const WN_MAP = (function () {
 
 	/** Attribution lives in the explore card, where no overlay can cover it. */
 	function setCredit(html) {
-		const el = document.getElementById("map-credit");
-		if (el) el.innerHTML = html;
+		document.querySelectorAll(".js-map-credit").forEach(el => { el.innerHTML = html; });   // explore card + map key
 	}
 
 	/** Add basemap provider i; if none of its tiles load, move on to the next. */
@@ -82,6 +81,7 @@ const WN_MAP = (function () {
 		zoneLayer = L.layerGroup().addTo(map);
 		chipLayer = L.layerGroup().addTo(map);
 		map.on("click", (e) => { if (handlers.mapTap) handlers.mapTap(e.latlng.lat, e.latlng.lng); });
+		map.on("dragstart", () => { if (handlers.dragStart) handlers.dragStart(); });
 		map.on("zoomend", updateChips);
 		map.on("moveend", () => { if (handlers.moved) { const c = map.getCenter(); handlers.moved(c.lat, c.lng); } });
 		return map;

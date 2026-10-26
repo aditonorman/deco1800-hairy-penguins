@@ -27,8 +27,8 @@ const WN_UI = (function () {
 
 	/* ---- tabs -------------------------------------------------------------- */
 
-	const TABS = ["map", "pokedex", "badges"];
-	const VIEWS = { map: "view-map", pokedex: "view-pokedex", badges: "view-badges" };
+	const TABS = ["map", "wildex", "badges"];
+	const VIEWS = { map: "view-map", wildex: "view-wildex", badges: "view-badges" };
 	let currentTab = "map";
 	const tabListeners = [];
 
@@ -150,13 +150,6 @@ const WN_UI = (function () {
 		return '<span class="type-chip t-' + species.group + '">' + I(WN_CONFIG.GROUP_ICONS[species.group] || "paw") + (WN_CONFIG.GROUP_LABELS[species.group] || "Animal") + "</span>";
 	}
 
-	function rarityPips(species) {
-		const r = WN_DATA.rarityInfo(species.rarity);
-		let html = '<span class="pips" title="' + r.label + '" aria-label="Rarity: ' + r.label + '">';
-		for (let i = 1; i <= 4; i++) html += '<i class="' + (i <= r.pips ? "on" : "") + '"></i>';
-		return html + "</span>";
-	}
-
 	function pad(n) { return String(n || 0).padStart(3, "0"); }
 
 	/** <img> for a species, or a group silhouette if there is no reference image. */
@@ -222,7 +215,7 @@ const WN_UI = (function () {
 	/* ---- sheets ------------------------------------------------------------------------ */
 
 	const backdrop = $("#backdrop");
-	const MODAL_SHEETS = new Set(["settings-sheet", "badge-sheet", "compare-sheet", "friend-sheet"]);
+	const MODAL_SHEETS = new Set(["settings-sheet", "badge-sheet", "compare-sheet", "friend-sheet", "key-sheet"]);
 	let openSheets = [];
 	const closeHandlers = {};
 
@@ -467,7 +460,6 @@ const WN_UI = (function () {
 		if (renderId !== entryRenderId) return;
 		const img = WN_DATA.imageInfo(key);
 		const imgSrc = WN_DATA.imageFor(key, "large");
-		const rarity = WN_DATA.rarityInfo(sp.rarity);
 
 		// The small cached thumbnail shows instantly; the big ALA photo fades in over it when it arrives.
 		const thumbSrc = WN_DATA.imageFor(key, "thumb");
@@ -481,8 +473,7 @@ const WN_UI = (function () {
 			"</div>";
 
 		const tiles = [];
-		tiles.push('<div class="info-tile"><small>Rarity</small><b>' + rarityPips(sp) + " " + rarity.label + "</b></div>");
-		tiles.push('<div class="info-tile"><small>Records</small><b>' + (sp.recordCount ? sp.recordCount.toLocaleString() + " around Brisbane" : "None lately") + "</b></div>");
+		tiles.push('<div class="info-tile wide"><small>Records</small><b>' + (sp.recordCount ? sp.recordCount.toLocaleString() + " around Brisbane in our data" : "None in the cached time window") + "</b></div>");
 		if (sp.hint) tiles.push('<div class="info-tile wide"><small>Activity</small><b>' + U.esc(sp.hint) + "</b></div>");
 		if (!locked && sp.family) tiles.push('<div class="info-tile"><small>Family</small><b>' + U.esc(sp.family) + "</b></div>");
 		if (!locked && sp.wildnet && sp.wildnet.lastSeen) tiles.push('<div class="info-tile"><small>Last WildNet record</small><b>' + U.formatDate(sp.wildnet.lastSeen) + "</b></div>");
@@ -781,16 +772,14 @@ const WN_UI = (function () {
 		const P = WN_CONFIG.PALETTE;
 		const it = c.items[0];
 		const sp = WN_DATA.getSpecies(it.key);
-		const rarity = WN_DATA.rarityInfo(sp.rarity);
 		const imgSrc = it.photo || WN_DATA.imageFor(sp.key, "thumb");
-		const rare = rarity.id === "rare" || rarity.id === "veryrare";
-		const kicker = c.title || (rare ? "Rare find" : "New entry unlocked");
+		const kicker = c.title || "New entry unlocked";
 		return {
 			ms: WN_CONFIG.CELEBRATE_MS,
 			colors: [WN_CONFIG.TYPE_COLORS[sp.group], P.wattle, P.amber, P.cream],
-			vibe: rare ? [30, 40, 30] : 25,
+			vibe: 25,
 			html: '<div class="rays"></div>' +
-				'<div class="celebrate-kicker">' + U.esc(kicker) + (rare && c.title ? " \u00b7 " + rarity.label : "") + "</div>" +
+				'<div class="celebrate-kicker">' + U.esc(kicker) + "</div>" +
 				(imgSrc ? '<img class="celebrate-img" src="' + U.esc(imgSrc) + '" alt="" data-fallback="' + U.esc(it.photo ? "" : fallbackFor(sp.key, imgSrc)) + '" data-group="' + sp.group + '">' : '<div class="celebrate-img group-icon t-' + sp.group + '">' + I(WN_CONFIG.GROUP_ICONS[sp.group] || "info") + "</div>") +
 				"<h2>" + U.esc(sp.displayName) + "</h2>" +
 				'<p class="entry-sci">' + U.esc(sp.sci) + "</p>" +
@@ -902,7 +891,7 @@ const WN_UI = (function () {
 	return {
 		$, $$, I, isPhone, reducedMotion,
 		showTab, onTab, tab, notice, toast, countTo, renderStats, renderLevel,
-		statusBadge, tierBadge, typeChip, rarityPips, pad, speciesImg, groupIcon, medal, avatar,
+		statusBadge, tierBadge, typeChip, pad, speciesImg, groupIcon, medal, avatar,
 		openSheet, closeSheet, onSheetClose,
 		showZone, refreshZoneSheet, hideZone, currentZone, showSettings, hideSettings,
 		showEntry, hideEntry, setEntryActions,
