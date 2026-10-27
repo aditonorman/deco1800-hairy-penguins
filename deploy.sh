@@ -23,7 +23,7 @@ JUMP_HOST="remote.labs.eait.uq.edu.au"     # EAIT's SSH host, open to the intern
 STAGE_DIR="wild-neighbours-upload"         # used on EAIT only if the direct hop is refused
 
 # Only these are uploaded. Add folders here as the project grows.
-SITE_FILES=(index.html manifest.webmanifest sw.js css js images data)
+SITE_FILES=(index.html about.html manifest.webmanifest sw.js css js images data)
 RSYNC_OPTS=(-avz --exclude '.DS_Store' --exclude '.gitkeep')
 
 UQ_USER="${1:-${UQ_USERNAME:-}}"
