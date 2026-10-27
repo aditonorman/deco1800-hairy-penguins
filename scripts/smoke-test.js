@@ -164,6 +164,11 @@ function section(name) { console.log("\n" + name); }
   await page.click("#key-sheet [data-close]");
   check("map key closes", await waitHidden("#key-sheet"));
   check("likely-around-here carousel filled", (await page.$$eval("#nearby-row .nearby-item", els => els.length)) > 3);
+  check("likely-around-here shows names and animal types, no question marks", await page.$$eval("#nearby-row .nearby-item", els => els.every(el => {
+    const sp = WN_DATA.getSpecies(el.dataset.key);
+    return el.querySelector(".nearby-name").textContent === sp.displayName && el.querySelector(".nearby-group").textContent === WN_CONFIG.GROUP_LABELS[sp.group] && !/\?/.test(el.textContent);
+  })));
+  check("hidden species there keep a greyed-out photo", await page.$$eval("#nearby-row .nearby-item.is-locked img", els => els.length > 0 && els.every(img => getComputedStyle(img).filter.includes("grayscale"))));
   check("map credit in the card and in the map key", await page.$$eval(".js-map-credit", els => els.length === 2 && els.every(el => /OpenStreetMap|Esri/.test(el.textContent))));
   if (server) check("GPS started on its own (permission granted earlier)", (await page.$(".you-marker")) !== null && /away|from/.test(await page.$eval("#hud-zone", el => el.textContent)), await page.$eval("#hud-zone", el => el.textContent));
   await shot("02-map");
@@ -216,6 +221,17 @@ function section(name) { console.log("\n" + name); }
   await page.click("#zone-sheet [data-close]");
   check("zone sheet closes", await waitHidden("#zone-sheet"));
   if (server) await page.click("#btn-follow");
+
+  // a new walker opening the Unlocked filter is told how to start, not "nothing matches"
+  await page.click('.tabbar button[data-tab="wildex"]'); await sleep(600);
+  check("Wildex says unlocked, never found", await page.evaluate(() =>
+    /^0 of \d+ unlocked · /.test(document.getElementById("wildex-progress").textContent) && document.querySelector("#dex-pct + small").textContent === "unlocked" &&
+    document.querySelector('#state-filter [data-state="unlocked"]').textContent === "Unlocked" && document.querySelector('#dex-sort option[value="recent"]').textContent === "Recently unlocked" &&
+    !/found/i.test(document.getElementById("view-wildex").textContent)));
+  await page.click('#state-filter [data-state="unlocked"]'); await sleep(300);
+  check("empty Unlocked filter says how to start", (await page.$eval("#wildex-grid .empty", el => el.textContent)) === "Nothing unlocked yet. Walk into a habitat zone to start your collection.");
+  await page.click('#state-filter [data-state="all"]'); await sleep(300);
+  await page.click('.tabbar button[data-tab="map"]'); await sleep(500);
 
   // ---- 3. walking with real GPS (emulated fixes) --------------------------------
   if (server) {
@@ -411,8 +427,24 @@ function section(name) { console.log("\n" + name); }
   check("scrolling loads every card", (await page.$$eval(".card", els => els.length)) === 708, (await page.$$eval(".card", els => els.length)) + " cards");
   await page.evaluate(() => { document.getElementById("view-wildex").scrollTop = 0; });
   check("cards rendered", (await page.$$eval(".card", els => els.length)) > 500);
-  check("locked cards hide the name", await page.$eval(".card.is-locked .card-name", el => el.textContent === "???"));
+  check("locked cards show the name and animal type over a greyed-out photo", await page.$$eval(".card.is-locked", els => els.length > 0 && els.every(el => {
+    const sp = WN_DATA.getSpecies(el.dataset.key), img = el.querySelector(".card-img img");
+    return el.querySelector(".card-name").textContent === sp.displayName && el.querySelector(".card-meta .type-chip").textContent.trim().endsWith(WN_CONFIG.GROUP_LABELS[sp.group]) &&
+      !/\?/.test(el.textContent) && (!img || getComputedStyle(img).filter.includes("grayscale"));
+  })));
   check("cards are numbered", /No\. \d{3}/.test(await page.$eval(".card .card-no", el => el.textContent)));
+  const hiddenName = await page.evaluate(() => WN_DATA.allSpecies().find(s => s.common && !WN_STORE.getEntry(s.key)).common);
+  await page.type("#wildex-search", hiddenName); await sleep(400);
+  check("search finds a hidden species by the name on its card", await page.$$eval(".card.is-locked .card-name", (els, n) => els.some(el => el.textContent === n), hiddenName), hiddenName);
+  await page.$eval("#wildex-search", el => { el.value = ""; el.dispatchEvent(new Event("input", { bubbles: true })); }); await sleep(400);
+  const lockedKey = await page.$$eval(".card.is-locked", els => els.map(el => el.dataset.key).find(k => WN_DATA.getSpecies(k).common));
+  await page.$eval(`.card[data-key="${lockedKey}"]`, el => el.click());
+  check("a hidden entry shows its name but stays locked", await waitShown("#entry-modal") && await page.$eval("#entry-body", (el, k) => {
+    const sp = WN_DATA.getSpecies(k);
+    return el.querySelector(".entry-title").textContent === sp.displayName && /you have not met yet/.test(el.querySelector(".entry-sci").textContent) &&
+      !el.textContent.includes(sp.sci) && !!el.querySelector(".entry-hero.is-locked") && !!el.querySelector(".locked-note") && !el.querySelector(".entry-about, .your-photo");
+  }, lockedKey), lockedKey);
+  await page.click("#entry-close"); await waitHidden("#entry-modal");
   // off screen the grid is dropped, so a long scroll is not redrawn behind the map on every zone collected
   await page.click('.tabbar button[data-tab="map"]'); await sleep(300);
   await page.evaluate(() => document.dispatchEvent(new CustomEvent("wn:collection", { detail: { quiet: true } }))); await sleep(300);
@@ -424,8 +456,15 @@ function section(name) { console.log("\n" + name); }
   check("bird tile filters to birds", await page.$$eval(".card", els => els.length > 0 && els.every(c => c.classList.contains("t-bird"))));
   await page.click('#group-filter [data-group="all"]'); await sleep(300);
   await page.click('#state-filter [data-state="unlocked"]'); await sleep(400);
-  const found = await page.$$eval(".card", els => els.length);
-  check("Found filter shows unlocked entries", found === (await store()).species, found);
+  const unlockedCards = await page.$$eval(".card", els => els.length);
+  check("Unlocked filter shows unlocked entries", unlockedCards === (await store()).species, unlockedCards);
+  check("empty filters explain what to do next", await page.evaluate(() =>
+    WN_WILDEX.emptyText({ group: "all", state: "nearby", query: "" }, 5, 0) === "No species recorded within your radius. Try a larger radius." &&
+    WN_WILDEX.emptyText({ group: "frog", state: "nearby", query: "" }, 5, 12) === "No frogs recorded within your radius. Try a larger radius." &&
+    WN_WILDEX.emptyText({ group: "all", state: "unlocked", query: "" }, 0, 12) === "Nothing unlocked yet. Walk into a habitat zone to start your collection." &&
+    WN_WILDEX.emptyText({ group: "frog", state: "unlocked", query: "" }, 5, 12) === "No frogs unlocked yet. Walk into a habitat zone where frogs have been recorded." &&
+    WN_WILDEX.emptyText({ group: "bird", state: "locked", query: "" }, 5, 12) === "You have unlocked every bird in the Wildex." &&
+    /^No species match “koalaa”\. /.test(WN_WILDEX.emptyText({ group: "all", state: "all", query: "koalaa" }, 5, 12))));
   await page.select("#dex-sort", "recent"); await sleep(300);
   await shot("08-wildex");
   await page.$eval(".card.is-unlocked", el => el.click());
@@ -531,6 +570,17 @@ function section(name) { console.log("\n" + name); }
   check("dark theme really changes the colours", await page.evaluate(() => getComputedStyle(document.body).backgroundColor !== "rgb(242, 247, 240)"));
   await page.evaluate(() => WN_THEME.set("auto"));
   check("Auto follows the system setting", ["light", "dark"].includes(await theme()) && (await page.evaluate(() => WN_THEME.choice())) === "auto");
+
+  // ---- 7c. show the intro again ----------------------------------------------------
+  section("show intro again");
+  await page.click("#btn-settings"); await waitShown("#settings-sheet");
+  check("settings offers Show intro again, outside the demo tools", await page.$eval("#btn-replay-intro", el => el.textContent.trim() === "Show intro again" && !el.closest("#demo-group") && !!el.closest("#about-group")));
+  await page.click("#btn-replay-intro");
+  check("it closes settings and replays the intro from slide one", await waitHidden("#settings-sheet") && await waitShown("#onboarding") &&
+    await page.evaluate(() => document.querySelectorAll("#ob-track .ob-slide").length === 3 && document.getElementById("ob-track").scrollLeft === 0 && document.querySelector("#ob-dots i").classList.contains("is-active")));
+  await shot("10-intro-again");
+  await page.click("#ob-skip");
+  check("the replayed intro closes", await waitHidden("#onboarding"));
 
   // ---- 8. layouts ------------------------------------------------------------------
   section("layouts");

@@ -499,7 +499,7 @@ const WN_UI = (function () {
 			'<div class="entry-content">' +
 				'<div class="entry-chips">' + typeChip(sp) + (entry ? tierBadge(entry.tier) : '<span class="tier tier-1">' + I("lock") + "Hidden</span>") + statusBadge(sp) +
 					(sp.sensitive ? '<span class="status is-nt">Location withheld</span>' : "") + "</div>" +
-				'<h2 class="entry-title">' + (locked ? "???" : U.esc(sp.displayName)) + "</h2>" +
+				'<h2 class="entry-title">' + U.esc(sp.displayName) + "</h2>" +
 				'<p class="entry-sci">' + (locked ? "A " + (WN_CONFIG.GROUP_LABELS[sp.group] || "species").toLowerCase() + " you have not met yet" : U.esc(sp.sci)) + "</p>" +
 				(locked ? '<p class="locked-note">' + I("pin") + "<span>Walk into a habitat zone where it has been recorded to unlock it. Then log a sighting or signs to level it up.</span></p>" : "") +
 				'<div class="info-grid">' + tiles.join("") + "</div>" +

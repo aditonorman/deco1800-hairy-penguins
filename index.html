@@ -178,7 +178,7 @@
 						</div>
 						<div class="ring-lg" aria-hidden="true">
 							<svg viewBox="0 0 36 36"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill ring-leaf" id="dex-ring" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
-							<span class="ring-lg-text"><b id="dex-pct">0%</b><small>found</small></span>
+							<span class="ring-lg-text"><b id="dex-pct">0%</b><small>unlocked</small></span>
 						</div>
 					</header>
 
@@ -187,7 +187,7 @@
 					<div class="dex-toolbar">
 						<div class="chip-row" id="state-filter" role="group" aria-label="Filter by unlock state">
 							<button type="button" class="chip is-active" data-state="all">All</button>
-							<button type="button" class="chip" data-state="unlocked">Found</button>
+							<button type="button" class="chip" data-state="unlocked">Unlocked</button>
 							<button type="button" class="chip" data-state="locked">Hidden</button>
 							<button type="button" class="chip" data-state="nearby">Near me</button>
 						</div>
@@ -201,7 +201,7 @@
 								<select id="dex-sort">
 									<option value="no">No.</option>
 									<option value="name">A to Z</option>
-									<option value="recent">Recently found</option>
+									<option value="recent">Recently unlocked</option>
 								</select>
 							</label>
 						</div>
@@ -293,13 +293,15 @@
 					<p class="hint-text">When on, walk with the arrows on the map: tap for a 25 m step, or hold to keep walking. The keyboard arrow keys work too. The find-me button turns demo off and takes you back to your real location.</p>
 					<div class="btn-row">
 						<button type="button" class="btn btn-primary btn-sm" id="btn-jump"><svg class="icon " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5s-6.5-6-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.5-6.5 11.5-6.5 11.5z"/><circle cx="12" cy="10" r="2.4"/></svg>Jump into the nearest zone</button>
-						<button type="button" class="btn btn-ghost btn-sm" id="btn-replay-intro">Replay intro</button>
 						<button type="button" class="btn btn-danger btn-sm" id="btn-reset">Reset progress</button>
 					</div>
 				</section>
 
-				<section class="settings-group">
+				<section class="settings-group" id="about-group">
 					<h3>About</h3>
+					<div class="btn-row">
+						<button type="button" class="btn btn-ghost btn-sm" id="btn-replay-intro">Show intro again</button>
+					</div>
 					<p class="hint-text">Wildlife records from the Queensland WildNet Data API and the Atlas of Living Australia. Reference photos via ALA. Map by OpenTopoMap and OpenStreetMap contributors. Zones are built from where animals have been recorded; no exact locations are ever shown. Your sightings, photos and badges stay on this device. Friend links share only counts and badges.</p>
 					<p class="hint-text">DECO1800 team project, Hairy Penguins.</p>
 				</section>

@@ -153,8 +153,6 @@
   --locked-mix: #dfe7de;
   --locked-img: grayscale(1) blur(2.5px) brightness(1.05) opacity(0.55);
   --locked-card-img: grayscale(1) blur(7px) brightness(1.08) opacity(0.5);
-  --q-fg: #ffffff;
-  --q-shadow: 0 2px 10px rgba(30, 50, 40, 0.45);
   --medal-locked-face: radial-gradient(circle at 32% 26%, #f4f7f2, #d3ddd2 80%);
   --medal-locked-ink: rgba(28, 45, 35, 0.38);
 
@@ -280,8 +278,6 @@
   --locked-mix: #121c17;
   --locked-img: grayscale(1) blur(2.5px) brightness(0.5);
   --locked-card-img: grayscale(1) blur(7px) brightness(0.42);
-  --q-fg: #eaf2ea;
-  --q-shadow: 0 3px 14px rgba(0, 0, 0, 0.55);
   --medal-locked-face: radial-gradient(circle at 32% 26%, #34463b, #18241e 80%);
   --medal-locked-ink: rgba(234, 242, 234, 0.42);
 
@@ -601,7 +597,7 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 .live-tag { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--on-accent); background: var(--eucalyptus); padding: 2px 7px; border-radius: 999px; }
 .nearby { margin-top: 12px; }
 .nearby-title { display: flex; justify-content: space-between; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-60); margin-bottom: 8px; }
-.nearby-row { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; }
+.nearby-row { display: flex; align-items: flex-start; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; }
 .nearby-row::-webkit-scrollbar { display: none; }
 .nearby-item { flex: none; width: 66px; scroll-snap-align: start; background: none; border: 0; padding: 0; text-align: center; animation: pop 0.4s var(--spring) both; animation-delay: var(--d, 0ms); }
 .nearby-thumb { position: relative; display: block; width: 62px; height: 62px; margin: 0 auto; border-radius: 50%; padding: 3px; background: var(--type, var(--leaf)); box-shadow: var(--shadow-sm); }
@@ -610,10 +606,8 @@ main { position: fixed; top: calc(var(--header-h) + var(--safe-top)); left: 0; r
 .nearby-item.is-locked .nearby-thumb { background: var(--fg-40); background: color-mix(in srgb, var(--type) 75%, var(--locked-mix)); }
 .nearby-item.is-locked img { filter: var(--locked-img); }
 .nearby-item.is-locked .nearby-thumb::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--type) 40%, transparent), transparent 75%); }
-.nearby-q { z-index: 1; }
-.nearby-q { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; font-size: 1.4rem; color: var(--q-fg); text-shadow: var(--q-shadow); }
 .nearby-name { display: block; margin-top: 5px; font-size: 0.66rem; line-height: 1.2; color: var(--fg-80); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.nearby-item.is-locked .nearby-name { color: var(--fg-40); letter-spacing: 0.12em; }
+.nearby-group { display: block; margin-top: 2px; font-size: 0.56rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-80); }
 @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .explore-controls { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; animation: rise 0.3s var(--ease); }
@@ -819,8 +813,7 @@ img.fade-img.is-loaded { opacity: 1; }
 .card.is-locked { border-style: dashed; background: linear-gradient(165deg, color-mix(in srgb, var(--type) 14%, var(--locked-card)), var(--locked-card) 62%); box-shadow: none; }
 .card.is-locked .card-img img { filter: var(--locked-card-img); transform: scale(1.14); }
 .card.is-locked .card-img::after { content: ""; position: absolute; inset: 0; z-index: 1; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--type) 38%, transparent), transparent 72%); }
-.card-q { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; font-family: var(--font-head); font-weight: 800; font-size: 2.5rem; color: var(--q-fg); text-shadow: var(--q-shadow); }
-.card.is-locked .card-name { color: var(--fg-40); letter-spacing: 0.22em; }
+.card.is-locked .card-name { color: var(--fg-80); }
 .card.is-new .card-img { box-shadow: 0 0 0 2px var(--wattle); }
 
 /* ---------- badges page ------------------------------------------------------------------------ */

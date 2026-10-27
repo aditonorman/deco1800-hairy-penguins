@@ -2,8 +2,9 @@
    Wild Neighbours - Wildex
    --------------------------------------------------------------------------
    A numbered card for every species, coloured by animal type. Locked cards
-   are greyed with a "?" and no name; unlocked cards show the photo, a tier
-   badge, plus a camera icon if you attached a photo.
+   show the name and animal type over a greyed-out photo (the entry stays
+   locked); unlocked cards show the photo, a tier badge, plus a camera icon
+   if you attached a photo.
    The group tiles at the top double as filters and show progress per group.
    Cards are drawn in batches of 48 as you scroll, so phones never have to
    draw all 708 at once.
@@ -90,7 +91,7 @@ const WN_WILDEX = (function () {
 		const tiers = { 1: 0, 2: 0, 3: 0 };
 		Object.values(entries).forEach(e => { tiers[e.tier] = (tiers[e.tier] || 0) + 1; });
 		const pct = all.length ? found / all.length * 100 : 0;
-		$("#wildex-progress").innerHTML = "<strong>" + found + "</strong> of " + all.length + " found · " +
+		$("#wildex-progress").innerHTML = "<strong>" + found + "</strong> of " + all.length + " unlocked · " +
 			tiers[3] + " sighted · " + tiers[2] + " by signs · " + tiers[1] + " by zone visit";
 		$("#dex-pct").textContent = found && pct < 1 ? "<1%" : Math.round(pct) + "%";
 		$("#dex-ring").style.strokeDashoffset = String(100 - Math.max(found ? 2 : 0, Math.round(pct)));
@@ -157,8 +158,8 @@ const WN_WILDEX = (function () {
 			if (filters.state === "locked" && entry) return false;
 			if (filters.state === "nearby" && !nearby.has(sp.key)) return false;
 			if (filters.query) {
-				// hidden entries can only be found by scientific name or number; keep the mystery
-				const hay = (entry ? sp.displayName + " " : "") + sp.sci + " " + sp.no;
+				// hidden cards show their names, so the search finds them by name too
+				const hay = sp.displayName + " " + sp.sci + " " + sp.no;
 				if (!hay.toLowerCase().includes(filters.query)) return false;
 			}
 			return true;
@@ -169,8 +170,28 @@ const WN_WILDEX = (function () {
 		const keep = animate ? BATCH : Math.max(BATCH, shown);
 		view = { list, entries, nearby, now, animate };
 		shown = 0;
-		grid.innerHTML = list.length ? "" : '<li class="empty">Nothing matches those filters.</li>';
+		grid.innerHTML = list.length ? "" : '<li class="empty">' + emptyText(filters, Object.keys(entries).length, nearby.size) + "</li>";
 		appendCards(keep);
+	}
+
+	/**
+	 * What the grid says when the filters leave nothing to show: why it is
+	 * empty and what to do next. `unlocked` and `nearby` are counts across all
+	 * animal groups. Exported for the browser tests.
+	 */
+	function emptyText(f, unlocked, nearby) {
+		const g = f.group === "all" ? "" : WN_CONFIG.GROUP_PLURALS[f.group].toLowerCase();
+		if (f.query) return "No species match “" + U.esc(f.query) + "”" + (g || f.state !== "all"
+			? " with these filters. Try setting them back to All."
+			: ". Check the spelling, or try the scientific name.");
+		if (f.state === "unlocked") return g && unlocked
+			? "No " + g + " unlocked yet. Walk into a habitat zone where " + g + " have been recorded."
+			: "Nothing unlocked yet. Walk into a habitat zone to start your collection.";
+		if (f.state === "nearby") return g && nearby
+			? "No " + g + " recorded within your radius. Try a larger radius."
+			: "No species recorded within your radius. Try a larger radius.";
+		if (f.state === "locked") return "You have unlocked every " + (g ? g.slice(0, -1) : "species") + " in the Wildex.";
+		return "No species to show.";
 	}
 
 	/** Add the next `count` cards from the current list, then re-arm the "load more" watcher. */
@@ -185,10 +206,10 @@ const WN_WILDEX = (function () {
 			const locked = !entry;
 			const fresh = entry && now - new Date(entry.tierAt || entry.unlockedAt).getTime() < NEW_MS;
 			const anim = animate && i < 24;
+			const label = U.esc(sp.displayName) + (locked ? ", " + (WN_CONFIG.GROUP_LABELS[sp.group] || "animal").toLowerCase() + ", not unlocked yet" : "");
 			return '<li><button type="button" class="card t-' + sp.group + (locked ? " is-locked" : " is-unlocked") + (fresh ? " is-new" : "") + (anim ? " is-anim" : "") + '"' +
-				(anim ? ' style="--d:' + (i * 28) + 'ms"' : "") + ' data-key="' + sp.key + '" aria-label="' + (locked ? "Hidden entry number " + sp.no : U.esc(sp.displayName)) + '">' +
+				(anim ? ' style="--d:' + (i * 28) + 'ms"' : "") + ' data-key="' + sp.key + '" aria-label="' + label + '">' +
 				'<div class="card-img">' + WN_UI.speciesImg(sp, "thumb") +
-					(locked ? '<span class="card-q" aria-hidden="true">?</span>' : "") +
 					(entry ? '<span class="tier tier-' + entry.tier + '">' + I(WN_CONFIG.TIERS[entry.tier].icon) + WN_CONFIG.TIERS[entry.tier].short + "</span>" : "") +
 					'<span class="card-icons">' +
 						(entry && entry.hasPhoto ? '<span class="card-icon" title="You added a photo">' + I("camera", "", "Has your photo") + "</span>" : "") +
@@ -197,7 +218,7 @@ const WN_WILDEX = (function () {
 					'<span class="card-no">No. ' + WN_UI.pad(sp.no) + "</span>" +
 				"</div>" +
 				'<div class="card-body">' +
-					'<div class="card-name">' + (locked ? "???" : U.esc(sp.displayName)) + "</div>" +
+					'<div class="card-name">' + U.esc(sp.displayName) + "</div>" +
 					'<div class="card-meta">' + WN_UI.typeChip(sp) + "</div>" +
 				"</div>" +
 			"</button></li>";
@@ -207,5 +228,5 @@ const WN_WILDEX = (function () {
 		if (shown < list.length) { grid.appendChild(sentinel); queueMore(); } else sentinel.remove();
 	}
 
-	return { init, render: schedule };
+	return { init, render: schedule, emptyText };
 })();

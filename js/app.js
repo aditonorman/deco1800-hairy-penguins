@@ -98,7 +98,10 @@
 		updateDataHint();
 	}
 
-	/** "Likely around here": the most-recorded species across the current zones. */
+	/**
+	 * "Likely around here": the most-recorded species across the current zones.
+	 * Each shows its name and animal type; hidden ones keep a greyed-out photo.
+	 */
 	function renderNearby() {
 		const agg = new Map();
 		zones.forEach(z => z.species.forEach(s => {
@@ -113,9 +116,11 @@
 			const sp = WN_DATA.getSpecies(a.key);
 			if (!sp) return "";
 			const locked = !WN_STORE.getEntry(a.key);
-			return '<button type="button" class="nearby-item t-' + sp.group + (locked ? " is-locked" : "") + '" data-key="' + a.key + '" style="--d:' + (i * 30) + 'ms" aria-label="' + (locked ? "Hidden " + WN_CONFIG.GROUP_LABELS[sp.group] : U.esc(sp.displayName)) + '">' +
-				'<span class="nearby-thumb">' + WN_UI.speciesImg(sp, "thumb") + (locked ? '<span class="nearby-q" aria-hidden="true">?</span>' : "") + "</span>" +
-				'<span class="nearby-name">' + (locked ? "???" : U.esc(sp.displayName)) + "</span></button>";
+			const group = WN_CONFIG.GROUP_LABELS[sp.group] || "Animal";
+			return '<button type="button" class="nearby-item t-' + sp.group + (locked ? " is-locked" : "") + '" data-key="' + a.key + '" style="--d:' + (i * 30) + 'ms" aria-label="' + U.esc(sp.displayName) + ", " + group.toLowerCase() + (locked ? ", not unlocked yet" : "") + '">' +
+				'<span class="nearby-thumb">' + WN_UI.speciesImg(sp, "thumb") + "</span>" +
+				'<span class="nearby-name">' + U.esc(sp.displayName) + "</span>" +
+				'<span class="nearby-group">' + group + "</span></button>";
 		}).join("");
 	}
 
