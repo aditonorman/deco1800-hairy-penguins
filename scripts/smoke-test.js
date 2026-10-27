@@ -383,6 +383,17 @@ function section(name) { console.log("\n" + name); }
     await sleep(500);
     check("swiping a card away dismisses it without opening the zone", (await cards("zone")) === 0 && !(await isShown("#zone-sheet")));
   }
+  // a new card while the oldest is still sliding out used to loop forever and freeze the page
+  const stackAfter = await page.evaluate(() => {
+    ["t1", "t2", "t3"].forEach(k => WN_UI.notify({ key: k, title: "Test " + k, text: "test" }));
+    const stack = document.getElementById("notif-stack");
+    stack.lastElementChild.classList.add("is-leaving");
+    WN_UI.notify({ key: "t4", title: "Test t4", text: "test" });
+    const n = stack.children.length;
+    stack.querySelectorAll('[data-key^="t"]').forEach(c => c.remove());
+    return n;
+  });
+  check("a new card while an old one slides out does not freeze the page", stackAfter <= 3, stackAfter + " cards");
   await settle();
 
   // ---- 5. wildex ----------------------------------------------------------------

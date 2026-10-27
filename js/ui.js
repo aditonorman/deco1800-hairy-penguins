@@ -625,8 +625,12 @@ const WN_UI = (function () {
 	}
 
 	function removeNotif(el, instant) {
-		if (!el || !el.parentNode || el.classList.contains("is-leaving")) return;
+		if (!el || !el.parentNode) return;
+		// Instant always removes, even a card that is already sliding out. notify() relies on
+		// it to make room: skipping a leaving card there looped forever and froze the page
+		// when a new zone card arrived while an old one was closing.
 		if (instant || reducedMotion()) { el.remove(); return; }
+		if (el.classList.contains("is-leaving")) return;
 		el.style.maxHeight = el.offsetHeight + "px";      // so the collapse can animate
 		void el.offsetWidth;
 		el.classList.add("is-leaving");
