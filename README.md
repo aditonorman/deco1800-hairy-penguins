@@ -64,8 +64,8 @@ localStorage and IndexedDB. There are no accounts and no server.
 
 Tiers only go up: sighted (3) beats signs (2) beats zone visit (1). The app only interrupts
 you in response to something you did: logging a sighting or signs shows a short celebration
-card (confetti, rays, the species photo) that closes itself after two seconds, and badges
-earned that way get their own celebration. Anything that happens just because you walked
+card (confetti, rays, the species photo) that closes itself after six seconds, or stays
+open while you touch it, and badges earned that way get their own celebration. Anything that happens just because you walked
 (entering a zone, badges for distance or zones) arrives as an alert card instead. A
 three-slide intro explains the app on first visit.
 

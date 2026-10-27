@@ -1156,7 +1156,7 @@ img.fade-img.is-loaded { opacity: 1; }
 .celebrate-img.group-icon { position: relative; inset: auto; display: grid; background: var(--well); }
 .level-up { position: relative; margin: 14px 16px 0; padding: 10px 12px; border-radius: 16px; background: var(--gold-soft); border: 1px solid var(--gold-line); font-size: 0.88rem; }
 .level-up b { color: var(--gold-ink); }
-.celebrate-timer { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: linear-gradient(90deg, var(--amber), var(--wattle)); transform-origin: left; animation: shrink var(--ms, 2000ms) linear forwards; }
+.celebrate-timer { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: linear-gradient(90deg, var(--amber), var(--wattle)); transform-origin: left; animation: shrink var(--ms, 6000ms) linear forwards; }
 @keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .celebrate.is-held .celebrate-timer { animation-play-state: paused; opacity: 0.4; }
 .confetti { position: fixed; left: 50%; top: 42%; z-index: 1250; width: 0; height: 0; pointer-events: none; }
@@ -1358,7 +1358,7 @@ img.fade-img.is-loaded { opacity: 1; }
 /* ---------- reduced motion ------------------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
-  .celebrate-timer { animation-duration: var(--ms, 2000ms) !important; }
+  .celebrate-timer { animation-duration: var(--ms, 6000ms) !important; }
 }
 
 /* ---------- standalone About page --------------------------------------------------------------------------- */

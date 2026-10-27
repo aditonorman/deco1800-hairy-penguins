@@ -95,9 +95,11 @@ const WN_CONFIG = {
 	GPS_MAX_JUMP_M: 250,     // ignore GPS jumps bigger than this when adding distance
 	GPS_MIN_ACCURACY_M: 80,  // positions less accurate than this are shown but do not trigger zones
 
-	/* Celebration modal auto-closes after this many ms unless the user holds it. */
-	CELEBRATE_MS: 2000,
-	CELEBRATE_BADGE_MS: 2600,
+	/* Celebration modal auto-closes after this many ms unless the user holds it.
+	   Long enough to read the card and tap "Add your photo": at the tradeshow,
+	   visitors found the old 2 seconds too fast to take in. */
+	CELEBRATE_MS: 6000,
+	CELEBRATE_BADGE_MS: 7000,
 
 	/* Personal photos are resized to fit this box before storing in IndexedDB. */
 	PHOTO_MAX_PX: 1024,
