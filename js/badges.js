@@ -22,7 +22,24 @@ const WN_BADGES = (function () {
 	const page = $("#badges-page");
 
 	function init() {
-		document.addEventListener("wn:progress", (e) => { snap = e.detail; if (WN_UI.tab() === "badges" && !editing) render(); });
+		// Progress updates arrive with every GPS fix while walking (distance counts towards
+		// badges). They update the open tab in place; only opening the tab animates it.
+		// While a finger is down, updates wait, so a button is never replaced mid-tap.
+		let pressing = false, held = false;
+		page.addEventListener("pointerdown", () => { pressing = true; });
+		const release = () => {
+			pressing = false;
+			if (!held) return;
+			held = false;
+			setTimeout(() => { if (WN_UI.tab() === "badges" && !editing) render(); }, 80);   // after the tap's click
+		};
+		["pointerup", "pointercancel", "blur"].forEach(ev => window.addEventListener(ev, release));
+		document.addEventListener("wn:progress", (e) => {
+			snap = e.detail;
+			if (WN_UI.tab() !== "badges" || editing) return;
+			if (pressing) held = true;
+			else render();
+		});
 		WN_UI.onTab((tab, changed) => {
 			if (tab !== "badges") return;
 			render(changed);
@@ -35,8 +52,8 @@ const WN_BADGES = (function () {
 			if (!t) return;
 			if (t.dataset.badge) showBadge(t.dataset.badge);
 			else if (t.dataset.friend) showCompare(t.dataset.friend);
-			else if (t.dataset.filter) { filter = t.dataset.filter; renderBadges(); }
-			else if (t.dataset.metric) { metric = t.dataset.metric; renderFriends(); }
+			else if (t.dataset.filter) { filter = t.dataset.filter; page.classList.remove("is-static"); renderBadges(); }
+			else if (t.dataset.metric) { metric = t.dataset.metric; page.classList.remove("is-static"); renderFriends(); }
 			else if (t.dataset.act === "share" || t.dataset.act === "add") openFriendSheet(t.dataset.act === "add");
 			else if (t.dataset.act === "edit-name") startEdit();
 		});
@@ -73,47 +90,79 @@ const WN_BADGES = (function () {
 		return '<div class="stat-tile" style="--c:' + colour + '"><span class="stat-ico">' + I(icon) + "</span><b>" + value + "</b><small>" + label + "</small></div>";
 	}
 
+	const drawn = new WeakMap();   // element -> the HTML last put in it
+	/**
+	 * Set an element's HTML only when it changed (or when `force` is set). Rebuilding the
+	 * whole tab on every GPS fix replayed its animations about once a second, so the page
+	 * looked like it kept reloading, and a tap landing mid-rebuild was lost.
+	 */
+	function put(el, html, force) {
+		if (!force && drawn.get(el) === html) return;
+		drawn.set(el, html);
+		el.innerHTML = html;
+	}
+
 	/* ---- rendering ----------------------------------------------------------- */
 
 	function render(animate) {
 		snap = PR.snapshot();
-		renderRanger();
-		renderNextUp();
+		page.classList.toggle("is-static", !animate);   // updates never replay the entrance animations
+		renderRanger(animate);
+		renderNextUp(animate);
 		renderBadges(animate);
-		renderFriends();
+		renderFriends(animate);
 	}
 
-	function renderRanger() {
+	function renderRanger(animate) {
 		const p = WN_STORE.profile(), s = snap.stats, lv = snap.level, C = WN_CONFIG.PALETTE;
 		const earned = Object.keys(snap.earned).length;
+		const ring = String(100 - Math.round(lv.progress * 100));
+		const width = (lv.progress * 100).toFixed(1) + "%";
+		const meta = "<span><b>" + lv.xp.toLocaleString() + "</b> XP</span><span>" + (lv.need - lv.into) + " XP to level " + (lv.level + 1) + "</span>";
+		const tiles =
+			statTile("book", C.wattle, s.species, "species") +
+			statTile("binoculars", C.amber, s.sighted, "sighted") +
+			statTile("pin", C.eucalyptus, s.zones, "zones") +
+			statTile("route", C.kingfisher, U.formatDistance(s.distanceM), "walked") +
+			statTile("medal", C.jacaranda, earned + "<small style=\"display:inline;font-size:.7rem\">/" + PR.BADGES.length + "</small>", "badges") +
+			statTile("flame", C.coral, s.currentStreak, s.currentStreak === 1 ? "day streak" : "day streak");
+		// While the name, level and rank stay the same, an update changes the numbers in place
+		// (the XP bar and ring glide to their new values) and leaves the buttons alone.
+		const who = [p.id, p.nickname, lv.level, lv.rank, editing].join("|");
+		const card = $("#ranger-card .ranger-card");
+		if (card && !animate && card.dataset.who === who) {
+			const fill = card.querySelector(".ring-fill"), bar = card.querySelector(".xp-bar span");
+			if (fill.getAttribute("stroke-dashoffset") !== ring) fill.setAttribute("stroke-dashoffset", ring);
+			if (bar.style.width !== width) bar.style.width = width;
+			put(card.querySelector(".xp-meta"), meta);
+			put(card.querySelector(".stat-tiles"), tiles);
+			return;
+		}
 		const nameHtml = editing
 			? '<input type="text" id="nick-input" maxlength="24" value="' + U.esc(p.nickname) + '" aria-label="Your ranger name">'
 			: "<span>" + U.esc(p.nickname) + '</span><button type="button" data-act="edit-name" aria-label="Edit your name">' + I("pencil") + "</button>";
 		$("#ranger-card").innerHTML =
-			'<div class="ranger-card">' +
+			'<div class="ranger-card" data-who="' + U.esc(who) + '">' +
 				'<div class="ranger-top">' + WN_UI.avatar(p.nickname, p.id) +
 					'<div class="ranger-id"><div class="ranger-name">' + nameHtml + '</div><div class="ranger-rank">' + U.esc(lv.rank) + "</div></div>" +
-					'<div class="ranger-level"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' + (100 - Math.round(lv.progress * 100)) + '"/></svg>' +
+					'<div class="ranger-level"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-track" cx="18" cy="18" r="15"/><circle class="ring-fill" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' + ring + '"/></svg>' +
 						'<span class="ranger-level-text"><small>Level</small><b>' + lv.level + "</b></span></div>" +
 				"</div>" +
-				'<div class="xp-row"><div class="xp-bar"><span data-w="' + (lv.progress * 100).toFixed(1) + '"></span></div>' +
-					'<div class="xp-meta"><span><b>' + lv.xp.toLocaleString() + "</b> XP</span><span>" + (lv.need - lv.into) + " XP to level " + (lv.level + 1) + "</span></div></div>" +
-				'<div class="stat-tiles">' +
-					statTile("book", C.wattle, s.species, "species") +
-					statTile("binoculars", C.amber, s.sighted, "sighted") +
-					statTile("pin", C.eucalyptus, s.zones, "zones") +
-					statTile("route", C.kingfisher, U.formatDistance(s.distanceM), "walked") +
-					statTile("medal", C.jacaranda, earned + "<small style=\"display:inline;font-size:.7rem\">/" + PR.BADGES.length + "</small>", "badges") +
-					statTile("flame", C.coral, s.currentStreak, s.currentStreak === 1 ? "day streak" : "day streak") +
-				"</div>" +
+				'<div class="xp-row"><div class="xp-bar"><span' + (animate ? "" : ' style="width:' + width + '"') + "></span></div>" +
+					'<div class="xp-meta">' + meta + "</div></div>" +
+				'<div class="stat-tiles">' + tiles + "</div>" +
 				'<div class="ranger-actions">' +
 					'<button type="button" class="btn btn-primary" data-act="share">' + I("share") + "Share my card</button>" +
 					'<button type="button" class="btn btn-ghost" data-act="add">' + I("users") + "Add friend</button>" +
 				"</div>" +
 			"</div>";
-		// fill the XP bar after paint so it animates
-		const bar = $("#ranger-card .xp-bar span");
-		requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = bar.dataset.w + "%"; }));
+		drawn.set($("#ranger-card .xp-meta"), meta);
+		drawn.set($("#ranger-card .stat-tiles"), tiles);
+		// opening the tab fills the XP bar after paint, so it animates
+		if (animate) {
+			const bar = $("#ranger-card .xp-bar span");
+			requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = width; }));
+		}
 		if (editing) {
 			const input = $("#nick-input");
 			input.focus();
@@ -132,13 +181,12 @@ const WN_BADGES = (function () {
 	}
 	function startEdit() { editing = true; renderRanger(); }
 
-	function renderNextUp() {
+	function renderNextUp(animate) {
 		const next = PR.nextUp(snap.evaluations, snap.earned, 3);
-		if (!next.length) { $("#next-up").innerHTML = ""; return; }
-		$("#next-up").innerHTML = '<div class="section-head"><div><p class="eyebrow">Keep going</p><h3>Next up</h3></div></div><div class="next-up">' +
+		put($("#next-up"), !next.length ? "" : '<div class="section-head"><div><p class="eyebrow">Keep going</p><h3>Next up</h3></div></div><div class="next-up">' +
 			next.map(ev => '<button type="button" class="next-card" data-badge="' + ev.badge.id + '">' + WN_UI.medal(ev.badge, { progress: ev.progress }) +
-				'<span class="next-text"><b>' + U.esc(ev.badge.name) + "</b><small>" + U.esc(ev.badge.desc) + '</small><span class="mini-bar"><span style="width:' + (ev.progress * 100).toFixed(1) + '%"></span></span></span>' +
-				'<span class="next-count">' + fmtProgress(ev) + "</span></button>").join("") + "</div>";
+				'<span class="next-text"><b>' + U.esc(ev.badge.name) + "</b><small>" + U.esc(ev.badge.desc) + '</small><span class="mini-bar"><span style="width:' + Math.round(ev.progress * 100) + '%"></span></span></span>' +
+				'<span class="next-count">' + fmtProgress(ev) + "</span></button>").join("") + "</div>", animate);
 	}
 
 	function renderBadges(animate) {
@@ -151,7 +199,6 @@ const WN_BADGES = (function () {
 			"</div></div>" +
 			'<div class="badge-summary"><span class="mini-bar"><span style="width:' + (got / total * 100).toFixed(1) + '%"></span></span></div>' +
 			'<div class="rarity-legend">' + ["bronze", "silver", "gold", "legendary"].map(r => '<span><span class="medal ' + r + '"></span>' + RARITY_LABEL[r] + " +" + WN_CONFIG.XP.badge[r] + " XP</span>").join("") + "</div>";
-		let n = 0;
 		PR.CATEGORIES.forEach(cat => {
 			const all = PR.BADGES.filter(b => b.cat === cat.id);
 			const list = all.filter(b => filter === "all" || (filter === "earned" ? earnedIds[b.id] : !earnedIds[b.id]));
@@ -163,13 +210,15 @@ const WN_BADGES = (function () {
 					const e = earnedIds[b.id];
 					const hidden = b.secret && !e;
 					const sub = e ? "Earned " + U.formatDate(e.earnedAt.slice(0, 10)) : hidden ? "???" : fmtProgress(ev);
-					const d = animate ? Math.min(n++ * 22, 500) : 0;
-					return '<button type="button" class="badge-tile ' + (e ? "is-earned" : "is-locked") + '" data-badge="' + b.id + '" style="--d:' + d + 'ms">' +
+					return '<button type="button" class="badge-tile ' + (e ? "is-earned" : "is-locked") + '" data-badge="' + b.id + '">' +
 						'<span style="position:relative">' + WN_UI.medal(b, { earned: Boolean(e), progress: ev.progress, shine: e && !e.seen }) + (e && !e.seen ? '<span class="new-flag">NEW</span>' : "") + "</span>" +
 						'<span class="badge-name">' + (hidden ? "Secret badge" : U.esc(b.name)) + '</span><span class="badge-sub">' + sub + "</span></button>";
 				}).join("") + "</div></div>";
 		});
-		$("#badge-area").innerHTML = html;
+		put($("#badge-area"), html, animate);
+		// opening the tab pops the tiles in one after another (kept out of the HTML, so an
+		// update compares like with like)
+		if (animate) $("#badge-area").querySelectorAll(".badge-tile").forEach((t, i) => t.style.setProperty("--d", Math.min(i * 22, 500) + "ms"));
 	}
 
 	function boardValue(card, m) {
@@ -183,7 +232,7 @@ const WN_BADGES = (function () {
 		return { value: v.toLocaleString(), unit: "XP" };
 	}
 
-	function renderFriends() {
+	function renderFriends(animate) {
 		const friends = Object.values(WN_STORE.friends());
 		const me = PR.myCard();
 		let html = '<div class="section-head"><div><p class="eyebrow">Friends</p><h3>Leaderboard</h3></div>' +
@@ -192,7 +241,7 @@ const WN_BADGES = (function () {
 			html += '<div class="empty-friends"><div class="avatar-row">' + WN_UI.avatar("Kookaburra Kid", "a1", "sm") + WN_UI.avatar("Gentle Glider", "b2", "sm") + WN_UI.avatar("Bold Goanna", "c3", "sm") + "</div>" +
 				"<p>Swap ranger cards with friends to see who is the better ranger. Links carry only names, counts and badges.</p>" +
 				'<div class="btn-row" style="justify-content:center"><button type="button" class="btn btn-primary btn-sm" data-act="share">' + I("share") + "Share my card</button></div></div>";
-			$("#friends-section").innerHTML = html;
+			put($("#friends-section"), html, animate);
 			return;
 		}
 		const rows = friends.map(f => ({ card: f, me: false })).concat([{ card: me, me: true }])
@@ -207,7 +256,7 @@ const WN_BADGES = (function () {
 					'<span class="board-who"><b>' + (r.me ? "You (" + U.esc(c.n) + ")" : U.esc(c.n)) + "</b><small>" + U.esc(sub) + "</small></span>" +
 					'<span class="board-score"><b>' + bl.value + "</b><small>" + bl.unit + "</small></span></button>";
 			}).join("") + "</div>";
-		$("#friends-section").innerHTML = html;
+		put($("#friends-section"), html, animate);
 	}
 
 	/* ---- badge detail ---------------------------------------------------------- */

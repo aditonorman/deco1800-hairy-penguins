@@ -922,6 +922,8 @@ img.fade-img.is-loaded { opacity: 1; }
 .board { display: grid; gap: 8px; }
 .board-tabs { margin-bottom: 12px; }
 .board-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--surface); border: 1px solid var(--card-border); box-shadow: var(--card-shadow); width: 100%; text-align: left; color: inherit; transition: transform 0.2s var(--spring); animation: rise 0.35s var(--ease) both; animation-delay: var(--d, 0ms); }
+/* updates while the Badges tab is open (every GPS fix) change it in place, without entrance animations */
+.badges-layout.is-static .badge-tile, .badges-layout.is-static .board-row { animation: none; }
 .board-row:active { transform: scale(0.98); }
 .board-row.is-me { border: 2px solid var(--primary); background: var(--surface); }
 .board-rank { width: 28px; flex: none; text-align: center; font-family: var(--font-head); font-weight: 800; font-size: 1.1rem; color: var(--fg-40); }

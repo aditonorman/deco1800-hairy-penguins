@@ -502,6 +502,45 @@ function section(name) { console.log("\n" + name); }
   check("badge detail closes", await waitHidden("#badge-sheet"));
   await sleep(2200);
   check("badges marked seen after viewing", await page.evaluate(() => WN_STORE.unseenBadgeCount() === 0));
+  // Walking with the tab open: every GPS fix sends a progress update. These used to rebuild the
+  // whole tab and replay its animations about once a second, so it looked like it kept reloading.
+  const still = await page.evaluate(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    WN_PROGRESS.schedule({ quiet: true }); await wait(250);          // first update after viewing: NEW flags go
+    let changes = 0;
+    const obs = new MutationObserver(ms => { changes += ms.filter(m => m.type === "childList").length; });
+    obs.observe(document.getElementById("badges-page"), { childList: true, subtree: true });
+    for (let i = 0; i < 5; i++) { WN_PROGRESS.schedule({ quiet: true }); await wait(200); }
+    obs.disconnect();
+    return changes;
+  });
+  check("standing still with Badges open: updates leave the page alone", still === 0, still + " changes");
+  const walkedNow = () => page.evaluate(() => [...document.querySelectorAll("#ranger-card .stat-tile")].find(t => /walked/.test(t.textContent)).querySelector("b").textContent);
+  const walked0 = await walkedNow();
+  const walk = await page.evaluate(async () => {
+    const buttons = document.querySelector("#ranger-card .ranger-actions"), level = WN_PROGRESS.snapshot().level.level;
+    WN_STORE.addDistance(150); WN_PROGRESS.schedule({ quiet: true });
+    await new Promise(r => setTimeout(r, 400));
+    return {
+      replays: document.getAnimations().filter(a => a.playState === "running" && /^(pop|rise)$/.test(a.animationName) && document.getElementById("badges-page").contains(a.effect && a.effect.target)).length,
+      buttonsKept: buttons.isConnected || WN_PROGRESS.snapshot().level.level !== level,    // a level-up may redraw the card
+      expected: WN_UTIL.formatDistance(WN_STORE.stats().distanceM)
+    };
+  });
+  const walked1 = await walkedNow();
+  check("walking with Badges open updates the numbers in place, no replayed animations", walked1 === walk.expected && walked1 !== walked0 && walk.replays === 0 && walk.buttonsKept,
+    walked0 + " -> " + walked1 + ", " + walk.replays + " animations replayed");
+  const tap = await page.evaluate(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    const tile = document.querySelector("#badge-area .badge-tile");
+    tile.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    WN_STORE.addDistance(150); WN_PROGRESS.schedule({ quiet: true }); await wait(300);    // distance badges' progress changes
+    const keptDuringTap = tile.isConnected;
+    window.dispatchEvent(new PointerEvent("pointerup")); await wait(300);
+    const walked = [...document.querySelectorAll("#ranger-card .stat-tile")].find(t => /walked/.test(t.textContent)).querySelector("b").textContent;
+    return { keptDuringTap, caughtUp: walked === WN_UTIL.formatDistance(WN_STORE.stats().distanceM), replacedAfter: !tile.isConnected };
+  });
+  check("a tap in progress is never interrupted: updates wait until it ends", tap.keptDuringTap && tap.caughtUp, JSON.stringify(tap));
 
   section("friends");
   await page.click('.ranger-actions [data-act="share"]');
